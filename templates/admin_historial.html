@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Historial de Recargas - papeleria</title>
+    <style>
+        body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:0; }
+        .header { background:#2c3e50; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+        .header a { color:white; text-decoration:none; margin-left:10px; }
+        table { width:95%; margin:20px auto; border-collapse: collapse; background:white; }
+        th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+        th { backgrouend:#ecf0f1; }
+        .top-nav { width:95%; margin:auto; margin-top:10px; text-align:right; }
+        .top-nav a { margin-left:10px; text-decoration:none; padding:5px 10px; border-radius:4px; background:#3498db; color:white; }
+        .flash { padding:10px; margin:10px auto; width:95%; border-radius:5px; text-align:center; }
+        .flash.success { background:#d4edda; color:#155724; }
+        .flash.error { background:#f8d7da; color:#721c24; }
+
+        /* Colores por tipo de recarga */
+        .tipo-compra { background:#d4edda; color:#155724; font-weight:bold; }
+        .tipo-devolucion { background:#f8d7da; color:#721c24; font-weight:bold; }
+        .tipo-ajuste { background:#cce5ff; color:#004085; font-weight:bold; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>Historial de Recargas - papeleria</div>
+    <div>
+        {% if session.get('admin_logueado') %}
+            <span>Hola, {{ session.get('admin_usuario') }} | </span>
+            # <a href="{{ url_for('admin_logout') }}">Cerrar sesión</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="top-nav">
+    <a href="{{ url_for('admin_productos') }}">Volver a Productos</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Código</th>
+            <th>Cantidad</th>
+            <th>Usuario</th>
+            <th>Motivo</th>
+            <th>Fecha</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h in historial %}
+        <tr>
+            <td>{{ h.id }}</td>
+            <td>{{ h.codigo }}</td>
+            <td style="font-weight:bold;">{{ h.cantidad }}</td>
+            <td>{{ h.usuario }}</td>
+            <td class="{% if h.motivo == 'Compra' %}tipo-compra{% elif h.motivo == 'Devolución' %}tipo-devolucion{% elif h.motivo == 'Ajuste' %}tipo-ajuste{% endif %}">
+                {{ h.motivo }}
+            </td>
+            <td>{{ h.fecha }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>

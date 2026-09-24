@@ -1,0 +1,170 @@
+
+    <!DOCTYPE html>
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.nombre_negocio if config.nombre_negocio else 'Sistema POS' }}</title>
+
+```
+<style>
+    body { font-family: Arial, sans-serif; background: #f4f6f8; margin:0; }
+
+    .header {
+        background: #2c3e50;
+        color: white;
+        padding: 15px;
+        display:flex;
+        justify-content: space-between;
+        align-items:center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        flex-wrap: wrap; /* 🔥 IMPORTANTE */
+    }
+
+    .logo-header {
+        height: 40px;
+        margin-right: 10px;
+        vertical-align: middle;
+        border-radius: 4px;
+    }
+
+    .btn {
+        padding: 8px 12px;
+        border-radius:4px;
+        text-decoration:none;
+        color:white;
+        font-size: 14px;
+        transition: opacity 0.3s;
+        display: inline-block;
+    }
+    
+    .btn:hover { opacity: 0.9; }
+
+    .btn-logout { background:#e74c3c; }
+    .btn-export { background:#27ae60; margin-right: 10px; }
+
+    /* 🔥 CONTENEDOR RESPONSIVE PARA TABLAS */
+    .table-container {
+        width: 95%;
+        margin: 20px auto;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background:white;
+        min-width: 600px; /* 🔥 evita que se rompa */
+    }
+
+    th, td {
+        border:1px solid #ccc;
+        padding:10px;
+        text-align:center;
+    }
+
+    th { background:#ecf0f1; }
+
+    /* Estilo para mensajes flash (alertas) */
+    .flash-messages {
+        width: 95%;
+        margin: 10px auto;
+        list-style: none;
+        padding: 0;
+    }
+
+    .flash {
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    /* 🔥 RESPONSIVE */
+    @media (max-width: 768px) {
+
+        .header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .header div {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        table {
+            font-size: 12px;
+        }
+
+        th, td {
+            padding: 8px;
+        }
+
+    }
+
+</style>
+```
+
+</head>
+
+<body>
+    <div class="header">
+        <div>
+            {% if config and config.logo %}
+                <img src="{{ url_for('static', filename=config.logo) }}" class="logo-header">
+            {% endif %}
+            <b>{{ config.nombre_negocio if config.nombre_negocio else 'Panel Administrativo' }}</b>
+        </div>
+
+```
+    <div>
+        {% if session.get('admin_logueado') %}
+            <span style="margin-right:15px;">
+                👤 {{ session.get('admin_usuario') }}
+            </span>
+
+            <a href="{{ url_for('admin_logout') }}" class="btn btn-logout">
+                🚪 Cerrar sesión
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class="flash-messages">
+      {% for message in messages %}
+        <li class="flash">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+<!-- 🔥 ENVUELVE TUS TABLAS CON ESTO EN LAS OTRAS VISTAS -->
+<!-- <div class="table-container"> TU TABLA </div> -->
+
+{% block content %}{% endblock %}
+
+<footer style="text-align:center;padding:40px 20px 20px;color:#777; font-size: 13px;">
+    <hr style="width: 50%; border: 0; border-top: 1px solid #ddd; margin-bottom: 20px;">
+    Sistema POS desarrollado por <b>Roberto Hdz</b> para <b>{{ config.nombre_negocio }}</b><br>
+    © 2026 Todos los derechos reservados
+</footer>
+```
+
+</body>
+</html>
+
+
+

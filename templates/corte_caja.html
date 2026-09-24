@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block contenido %}
+
+<h1 style="text-align:center">💰 Corte de Caja</h1>
+
+<div style="background:white;width:350px;margin:auto;padding:20px;border-radius:10px;text-align:center">
+
+<p>🧾 Tickets del día: <b>{{ tickets }}</b></p>
+
+<p>💰 Total vendido: <b>${{ total }}</b></p>
+
+<p>📊 Ticket promedio: <b>${{ promedio }}</b></p>
+
+</div>
+
+<br>
+
+<div style="text-align:center">
+<a href="{{ url_for('admin_dashboard') }}">⬅ Volver</a>
+</div>
+
+{% endblock %}

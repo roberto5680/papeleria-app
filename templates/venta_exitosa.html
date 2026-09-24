@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papelería La mejor</title>
+</head>
+
+<style>
+
+.pagina-exito{
+    background: linear-gradient(135deg, #43cea2, #185a9d);
+    min-height: calc(100vh - 120px);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.card {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 450px;
+    width: 100%;
+}
+
+.icon-success {
+    font-size: 50px;
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: #2ecc71;
+    margin: 10px 0;
+}
+
+p {
+    color: #666;
+    font-size: 15px;
+}
+
+.total-pago {
+    font-size: 20px;
+    font-weight: bold;
+    color: #2c3e50;
+    text-align: right;
+    margin: 15px 0;
+}
+
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 12px auto;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    color: white;
+    text-decoration: none;
+    transition: transform 0.2s;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-whatsapp {
+    background-color: #25D366;
+    box-shadow: 0 4px 12px rgba(37,211,102,0.3);
+}
+
+.btn-pdf {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.btn-nuevo {
+    background-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+.btn-inicio {
+    display: inline-block;
+    background-color: #34495e; /* Color elegante a juego con tu nav */
+    color: white;
+    padding: 12px 25px;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-top: 20px;
+    transition: background 0.3s;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-inicio:hover {
+    background-color: #2c3e50;
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+
+
+.aviso-descarga {
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #e74c3c;
+}
+
+.footer-text {
+    font-size: 12px;
+    color: #999;
+    margin-top: 20px;
+}
+
+</style>
+
+<div class="pagina-exito">
+
+<div class="card">
+
+<div class="icon-success">✅</div>
+
+<h2>Pedido #{{ id_pedido }}</h2>
+
+<p>¡Gracias por tu compra! Ya estamos preparando tus productos recuerda que pagas al recivir tu material aceptamos efectivo o transferencia para tu comodidad.</p>
+{% if total > 0 %}
+<div style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
+    
+    <a href="{{ url_for('ver_ticket', filename=pdf_filename) }}" 
+       target="_blank"
+       style="
+        display:block;
+        width:100%;
+        padding:15px;
+        background:#3498db;
+        color:white;
+        text-align:center;
+        border-radius:10px;
+        text-decoration:none;
+        font-weight:bold;
+       ">
+        📄 Ver / Descargar Ticket
+    </a>
+    <a href="{{ whatsapp_url }}" target="_blank"
+       style="
+        display:block;
+        width:100%;
+        padding:15px;
+        background:#25D366;
+        color:white;
+        text-align:center;
+        border-radius:10px;
+        text-decoration:none;
+        font-weight:bold;
+       ">
+        📲 Enviar pedido por WhatsApp
+    </a>
+
+</div>
+{% endif %}
+<p class="total-pago">Total: ${{ "%.2f"|format(total) }}</p>
+
+<hr style="border:0;border-top:1px solid #eee;margin:20px 0;">
+
+<a href="{{ url_for('catalogo') }}" class="btn btn-nuevo">
+🛒 Seguir comprando
+</a>
+<div style="text-align: center; margin-top: 30px;">
+    <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-inicio">
+        🏠 Finalizar 
+    </a>
+</div>
+
+<p class="footer-text">Tu papeleria - Tu tienda de confianza</p>
+
+</div>
+
+</div>
+
+
+{% endblock %}

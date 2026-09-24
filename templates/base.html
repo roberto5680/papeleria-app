@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.nombre_negocio or "papeleria" }}</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            background: #f5f5f5;
+        }
+
+        /* NAV MODERNO */
+        nav {
+            background: rgba(52, 73, 94, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            height: 40px;
+            margin-right: 10px;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .titulo {
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: auto;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        /* BOTONES */
+        .btn-main {
+            background: #27ae60;
+        }
+
+        .btn-main:hover {
+            background: #1e8449;
+        }
+
+        .btn-admin {
+            background: #e67e22;
+        }
+
+        .btn-logout {
+            background: #c0392b;
+        }
+
+        /* CONTENIDO */
+        .content {
+            padding: 20px;
+            min-height: 80vh;
+        }
+
+        /* FOOTER */
+        footer {
+            text-align: center;
+            font-size: 12px;
+            color: gray;
+            padding: 20px;
+            background: #ecf0f1;
+            margin-top: 40px;
+        }
+
+        /* CELULARES */
+        @media (max-width: 500px){
+            nav {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            nav a {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav>
+    {% if config.logo %}
+        <img src="{{ url_for('static', filename=config.logo) }}" class="logo">
+    {% else %}
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+    {% endif %}
+
+    <div class="titulo">
+        {{ config.nombre_negocio or "papeleria" }}
+    </div>
+
+    <!-- SOLO UN MENU (SIN DUPLICADOS) -->
+    <a href="/" class="btn-main">🏠 Inicio</a>
+    <a href="/catalogo" class="btn-main">📦 Catálogo</a>
+    <a href="{{ url_for('acerca') }}" class="btn-main">ℹ️ Acerca</a>
+
+    {% if session.get('admin_logueado') %}
+        <a href="{{ url_for('admin_dashboard') }}" class="btn-admin">⚙ Panel</a>
+        <a href="{{ url_for('admin_logout') }}" class="btn-logout">🔒 Salir</a>
+    {% endif %}
+</nav>
+
+<div class="content">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div style="
+              padding:15px; 
+              margin-bottom:20px; 
+              border-radius:10px;
+              background-color: {{ '#d4edda' if category == 'success' else '#f8d7da' }};
+              color: {{ '#155724' if category == 'success' else '#721c24' }};
+          ">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block contenido %}
+    {% endblock %}
+
+</div>
+
+<footer>
+    <div>
+        <b>{{ config.nombre_negocio or "La Preferida" }}</b><br>
+        {{ config.direccion }} | Tel: {{ config.telefono }}
+    </div>
+
+    <br>
+    Sistema POS desarrollado por <b>Roberto Hdz</b><br>
+    © 2026
+</footer>
+
+<script>
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'F9' || (event.ctrlKey && event.shiftKey && event.code === 'KeyA')) {
+        event.preventDefault();
+        window.location.href = "{{ url_for('admin_login') }}";
+    }
+});
+</script>
+
+</body>
+</html>

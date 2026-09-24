@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<style>
+    .config-container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .config-header {
+        border-bottom: 2px solid #f0f0f0;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #2c3e50;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+    .form-control:focus {
+        border-color: #3498db;
+        outline: none;
+        box-shadow: 0 0 5px rgba(52,152,219,0.3);
+    }
+    .btn-save {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        width: 100%;
+        transition: background 0.3s;
+    }
+    .btn-save:hover {
+        background: #219150;
+    }
+    .preview-logo {
+        display: block;
+        max-width: 120px;
+        margin: 10px 0;
+        border: 1px solid #eee;
+        padding: 5px;
+        border-radius: 5px;
+    }
+    .hint {
+        font-size: 12px;
+        color: #7f8c8d;
+        margin-top: 5px;
+    }
+</style>
+
+<div class="config-container">
+    <div class="config-header">
+        <h2>⚙️ Configuración del Negocio</h2>
+        <p style="color: #7f8c8d; font-size: 14px;">Personaliza los datos que aparecen en tus tickets y en la web.</p>
+    </div>
+
+    <form action="{{ url_for('guardar_config') }}" method="POST" enctype="multipart/form-data">
+        
+        <div class="form-group">
+            <label for="nombre">Nombre del Negocio:</label>
+            <input type="text" id="nombre" name="nombre" class="form-control" 
+                   value="{{ config.nombre_negocio or '' }}" placeholder="Ej. Papelería " required>
+        </div>
+
+        <div class="form-group">
+            <label for="direccion">Dirección completa:</label>
+            <input type="text" id="direccion" name="direccion" class="form-control" 
+                   value="{{ config.direccion or '' }}" placeholder="Calle, Número, Colonia, CP">
+        </div>
+
+        <div class="form-group">
+            <label for="telefono">Teléfono de contacto:</label>
+            <input type="text" id="telefono" name="telefono" class="form-control" 
+                   value="{{ config.telefono or '' }}" placeholder="951 123 4567">
+        </div>
+
+        <div class="form-group">
+            <label for="zonas">Zonas de entrega (separadas por coma):</label>
+            <textarea id="zonas" name="zonas" class="form-control" rows="3" 
+                      placeholder="Centro, Macuilxochitl, San Jerónimo">{{ config.zonas or '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="logo">Logotipo del Negocio:</label>
+            {% if config.logo %}
+                <img src="{{ url_for('static', filename=config.logo) }}" class="preview-logo" alt="Logo actual">
+                <p class="hint">Logo actual: {{ config.logo }}</p>
+            {% endif %}
+            <input type="file" id="logo" name="logo" class="form-control" accept="image/*">
+            <p class="hint">Se recomienda una imagen cuadrada de 200x200px.</p>
+        </div>
+        <div class="form-group">
+    <label for="banner">Banner del Negocio:</label>
+
+    {% if config.banner %}
+        <img src="{{ url_for('static', filename=config.banner) }}" class="preview-logo">
+    {% endif %}
+
+    <input type="file" id="banner" name="banner" class="form-control" accept="image/*">
+</div>
+
+        <button type="submit" class="btn-save">💾 Guardar Cambios</button>
+    </form>
+</div>
+{% endblock %}

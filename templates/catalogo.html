@@ -1,0 +1,160 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<style>
+    .contenedor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        padding: 20px;
+        width: 95%;
+        margin: auto;
+    }
+    .tarjeta-producto {
+        border: 1px solid #e1e8ed;
+        border-radius: 12px;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        transition: 0.3s;
+    }
+    .active-thumb {
+        border-color: #27ae60 !important;
+        transform: scale(1.05);
+    }
+    .buscador-container {
+        text-align: center;
+        margin: 20px 0;
+    }
+    #input-busqueda {
+        padding: 12px 20px;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 25px;
+        border: 1px solid #ddd;
+    }
+    .btn-carrito {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #27ae60;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: bold;
+        z-index: 1000;
+    }
+    #aviso-toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #333;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 8px;
+        display: none;
+        z-index: 2000;
+    }
+</style>
+
+<div class="buscador-container">
+    <input type="text" id="input-busqueda" placeholder="🔍 Buscar producto...">
+</div>
+
+<div class="contenedor-grid" id="contenedor-productos">
+    {% for producto in productos %}
+    <div class="producto item-producto tarjeta-producto" data-busqueda="{{ producto.descripcion | lower }}">
+        
+        <div style="width: 100%; height: 180px; display: flex; justify-content: center; align-items: center; background: #fdfdfd; padding: 10px; box-sizing: border-box; overflow: hidden;">
+            {% if producto.imagen %}
+                {% set fotos = producto.imagen.split(',') %}
+                <img id="img_{{ producto.codigo }}" 
+                     src="{{ url_for('static', filename='uploads/' ~ fotos[0] | trim) }}"
+                     style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: pointer;"
+                     onclick="abrirZoom(this.src)"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='productos/default.jpg') }}';">
+            {% else %}
+                <img src="{{ url_for('static', filename='productos/default.jpg') }}" style="max-width: 40%; opacity: 0.3;">
+            {% endif %}
+        </div>
+
+        {% if producto.imagen and producto.imagen.split(',')|length > 1 %}
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding: 10px; justify-content: center;">
+            {% for img_item in producto.imagen.split(',') %}
+            <img src="{{ url_for('static', filename='uploads/' ~ img_item | trim) }}"  
+                 class="mini-img-{{ producto.codigo }} {% if loop.first %}active-thumb{% endif %}"
+                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 2px solid #ddd; cursor: pointer;"
+                 onclick="cambiarImagenPrincipal('{{ producto.codigo }}', this)">
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="padding: 15px; flex-grow: 1; display: flex; flex-direction: column;">
+            <h3 style="margin: 0 0 10px 0; font-size: 1rem; color: #2c3e50; font-weight: 600;">{{ producto.descripcion }}</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="font-size: 1.3rem; font-weight: bold; color: #27ae60;">${{ "{:,.2f}".format(producto.precio | float) }}</span>
+                <span style="font-size: 0.9rem; background: #f8f9fa; padding: 2px 8px; border-radius: 6px;">Stock: {{ producto.inventario }}</span>
+            </div>
+            <button onclick="agregarAlCarrito('{{ producto.codigo }}', '{{ producto.descripcion }}')" 
+                    style="width: 100%; background: #2c3e50; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                🛒 Agregar Pedido
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="{{ url_for('ver_carrito') }}" class="btn-carrito">
+    🛒 Ver Pedido <span id="contador-carrito" style="background: white; color: #27ae60; padding: 2px 7px; border-radius: 50%; margin-left: 5px; display: none;">0</span>
+</a>
+
+<div id="aviso-toast"></div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let cantidadTotal = 0;
+        const inputBusqueda = document.getElementById('input-busqueda');
+        inputBusqueda.addEventListener('input', function () {
+            const filtro = this.value.toLowerCase().trim();
+            document.querySelectorAll('.item-producto').forEach(p => {
+                const texto = p.dataset.busqueda || '';
+                p.style.display = texto.includes(filtro) ? 'flex' : 'none';
+            });
+        });
+
+        window.agregarAlCarrito = function(codigo, descripcion) {
+            fetch('/agregar/' + codigo)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.ok) {
+                        mostrarAviso("✅ " + descripcion + " añadido");
+                        cantidadTotal++;
+                        const contador = document.getElementById('contador-carrito');
+                        if (contador) { contador.innerText = cantidadTotal; contador.style.display = 'inline-block'; }
+                    }
+                });
+        };
+
+        function mostrarAviso(mensaje) {
+            const aviso = document.getElementById('aviso-toast');
+            aviso.innerText = mensaje;
+            aviso.style.display = 'block';
+            setTimeout(() => { aviso.style.display = 'none'; }, 2500);
+        }
+    });
+
+    function cambiarImagenPrincipal(codigo, mini) {
+        const principal = document.getElementById('img_' + codigo);
+        if (principal) { principal.src = mini.src; }
+        document.querySelectorAll('.mini-img-' + codigo).forEach(m => m.classList.remove('active-thumb'));
+        mini.classList.add('active-thumb');
+    }
+
+    function abrirZoom(ruta) { window.open(ruta, '_blank'); }
+</script>
+
+{% endblock %}

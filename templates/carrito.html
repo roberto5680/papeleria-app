@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrito de compras</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #43cea2, #185a9d);
+            margin: 0;
+            padding: 15px; /* Reducido para móviles */
+            font-size: 16px; /* Tamaño base cómodo para leer */
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        .carrito {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .item-carrito {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+            display: flex;
+            flex-direction: row; /* Mantener en fila */
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Estilo para los datos del producto */
+        .info-producto {
+            flex-grow: 1;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .acciones {
+            display: flex;
+            flex-direction: column; /* Botones uno sobre otro en móvil */
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        button, .btn-volver {
+            padding: 12px 15px; /* Más espacio para los dedos */
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+            width: 100%; /* Botones a ancho completo en móvil */
+            box-sizing: border-box;
+        }
+
+        .btn-vaciar { background: #e74c3c; color: white; }
+        .btn-volver { background: #3498db; color: white; text-decoration: none; }
+        .btn-confirmar { background: #2ecc71; color: white; margin-top: 10px; }
+
+        .cantidad-botones {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 10px;
+        }
+
+        .cantidad-botones button {
+            width: 40px; /* Botones circulares o cuadrados pequeños */
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eee;
+            color: black;
+        }
+
+        .cantidad-botones span {
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        /* Ajustes para los formularios */
+        input[type="text"], 
+        input[type="tel"], 
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px; /* Evita el zoom automático en iPhone */
+            box-sizing: border-box;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        #ubicacion-status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+        }
+
+        /* Media query para tablets o pantallas más grandes */
+        @media (min-width: 480px) {
+            .acciones {
+                flex-direction: row; /* Botones a la par en pantallas grandes */
+            }
+            button, .btn-volver {
+                width: auto;
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<h1>🛒 Tu carrito</h1>
+
+<div class="carrito">
+
+{% if productos %}
+    {% for producto in productos %}
+        <div class="item-carrito">
+            <div class="info-producto">
+                <strong>{{ producto.descripcion }}</strong><br>
+                <small>Precio: ${{ producto.precio }} | Total: ${{ producto.precio_total_producto }}</small>
+            </div>
+
+            <div class="cantidad-botones">
+                <button type="button" onclick="cambiarCantidad('{{ producto.codigo }}', -1)">-</button>
+                <span>{{ producto.cantidad }}</span>
+                <button type="button" onclick="cambiarCantidad('{{ producto.codigo }}', 1)">+</button>
+            </div>
+        </div>
+    {% endfor %}
+    <div style="padding: 15px 0; font-size: 1.2rem;">
+        <strong>Total a pagar: ${{ total }}</strong>
+    </div>
+{% else %}
+    <p style="text-align:center;">El carrito está vacío.</p>
+{% endif %}
+
+
+<hr>
+
+{% if productos %}
+    <h3>🚚 Datos de entrega</h3>
+
+    <form method="POST" action="{{ url_for('confirmar_venta') }}">
+        <label>👤 Nombre del cliente</label>
+        <input type="text" name="nombre" placeholder="Tu nombre completo" required>
+
+        <label>📞 Teléfono</label>
+        <input type="tel" name="telefono" placeholder="Ej: 1234567890" required>
+
+        <label>🏠 Dirección</label>
+        <textarea name="direccion" rows="3" placeholder="Calle, número, colonia..." required></textarea>
+
+        <label>📝 Referencias (opcional)</label>
+        <textarea name="referencias" rows="2" placeholder="Color de casa, entre calles..."></textarea>
+
+        <div style="background:#fff3cd; border:1px solid #ffeeba; padding:12px; border-radius:8px; margin-bottom:15px; font-size: 0.9rem;">
+            <strong>📌 Importante:</strong><br>
+            Pago contra entrega (efectivo o transferencia).
+        </div>
+
+        <button type="submit" class="btn-confirmar">✅ Confirmar pedido</button>
+    </form>
+
+{% else %}
+    <div style="text-align: center; padding: 40px 20px;">
+        <p style="font-size: 1.2rem; color: #666;">Tu carrito aún no tiene productos.</p>
+        <a href="{{ url_for('catalogo') }}" class="btn-volver" style="background: #3498db; width: auto; padding: 15px 30px;">
+            Ir a comprar ahora 🛒
+        </a>
+    </div>
+{% endif %}
+
+<div class="acciones">
+    {% if productos %}
+        <button type="button" class="btn-vaciar" onclick="vaciarCarrito()">🗑️ Vaciar carrito</button>
+    {% endif %}
+    <a href="{{ url_for('catalogo') }}" class="btn-volver">⬅ Volver al catálogo</a>
+</div>
+
+
+<script>
+// (Tus funciones de JS se mantienen igual, solo se mejora la experiencia visual)
+function vaciarCarrito() {
+    if(confirm("¿Estás seguro de vaciar el carrito?")) {
+        fetch('/vaciar_carrito')
+            .then(res => res.json())
+            .then(data => { if (data.ok) location.reload(); });
+    }
+}
+function cambiarCantidad(codigo, cambio) {
+    fetch(`/cambiar_cantidad/${codigo}/${cambio}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.ok) {
+                alert(data.error || "No se pudo actualizar la cantidad");
+            } else {
+                location.reload();
+            }
+        });
+}
+
+</script>
+
+
+</body>
+</html>
+
+{% endblock %}

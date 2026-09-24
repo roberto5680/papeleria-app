@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papelería </title>
+</head>
+
+<div style="max-width:500px;margin:auto;padding:30px;">
+
+<h2>📊 Corte de Caja por Fechas</h2>
+
+<form action="{{ url_for('corte_caja_rango') }}" method="get">
+
+<label>Fecha Inicio</label>
+<input type="date" name="inicio" required style="width:100%;padding:10px;margin-bottom:15px;">
+
+<label>Fecha Fin</label>
+<input type="date" name="fin" required style="width:100%;padding:10px;margin-bottom:20px;">
+
+<button type="submit"
+style="background:#e67e22;color:white;padding:12px 20px;border:none;border-radius:8px;font-weight:bold;">
+Generar Corte
+</button>
+
+</form>
+
+</div>
+
+{% endblock %}

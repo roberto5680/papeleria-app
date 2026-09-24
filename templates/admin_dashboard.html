@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div style="padding:20px">
+
+    <h1>📋 Panel Administrativo</h1>
+
+    <a href="{{ url_for('admin_productos') }}" class="btn btn-export">
+    📦 Productos
+    </a>
+
+    <a href="{{ url_for('admin_historial') }}" class="btn btn-export">
+    📜 Historial
+    </a>
+    <a href="{{ url_for('admin_reportes') }}" class="btn btn-export">
+📊 Reportes
+</a>
+
+<a href="{{ url_for('configuracion_admin') }}" class="btn btn-export" 
+   style="background-color: #34495e; border-color: #2c3e50;">
+⚙️ Configuración
+</a>
+   
+
+</div>
+
+{% endblock %}

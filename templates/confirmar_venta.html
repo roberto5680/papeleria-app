@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Confirmar Venta - papeleria</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f4f7f6; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .total-box { background-color: #e8f4fd; padding: 15px; border-radius: 8px; text-align: right; margin-bottom: 20px; }
+        .acciones { display: flex; justify-content: space-between; margin-top: 30px; align-items: center; }
+        .btn { padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
+        .btn-cancelar { background-color: #95a5a6; color: white; }
+        .btn-confirmar { background-color: #27ae60; color: white; }
+        .alerta-mostrador { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border-left: 5px solid #ffeeba; margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Confirmación de Venta</h1>
+        
+        <div class="total-box">
+            <h2 style="margin: 0; color: #2c3e50;">Total a Pagar: ${{ "%.2f"|format(total) }}</h2>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cant.</th>
+                    <th>Precio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr>
+                    <td>{{ producto.descripcion }}</td>
+                    <td>{{ producto.cantidad }}</td>
+                    <td>${{ "%.2f"|format(producto.precio_total_producto) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="alerta-mostrador">
+            📢 favor de pagar  al recivir su mercancia.
+        </div>
+
+        <div class="acciones">
+            <a href="/carrito" class="btn btn-cancelar">⬅️ Corregir</a>
+            <form action="{{ url_for('venta_exitosa') }}" method="GET">
+                <button type="submit" class="btn btn-confirmar">✅ Finalizar Pedido</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>¿ventas disponible en? -la preferida</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #43cea2, #185a9d);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 40px 25px;
+            width: 85%;
+            max-width: 380px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+        h2 { 
+            color: #2c3e50; 
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        p {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            font-size: 0.95rem;
+        }
+        select {
+            width: 100%;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background-color: #fafafa;
+            appearance: none; /* Quita el estilo por defecto */
+        }
+        button {
+            width: 100%;
+            padding: 18px;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(39,174,96,0.3);
+            transition: transform 0.2s;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="icon">📍</div>
+    <h2>¿ventas disponibles en?</h2>
+    <p>Selecciona tu area de entrega o zona para ver los productos disponibles.</p>
+
+    <form method="POST">
+        <select name="zona" required>
+            <option value="" disabled selected>-- Selecciona tu area de entrega --</option>
+            {% for zona in zonas %}
+    <option value="{{ zona.strip() }}">{{ zona.strip() }}</option>
+{% endfor %}
+            
+        </select>
+
+        <button type="submit">CONTINUAR</button>
+    </form>
+
+    {% if error %}
+        <div class="error">⚠️ {{ error }}</div>
+    {% endif %}
+</div>
+
+</body>
+</html>
+
+{% endblock %}

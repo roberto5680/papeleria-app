@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papelería</title>
+</head>
+
+
+<div class="header">
+    <div>Productos Más Vendidos </div>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn" style="background:#7f8c8d;">Volver al Panel</a>
+</div>
+
+<div style="width:80%; margin: 30px auto;">
+    <h2>🏆 Top 10 Productos con Mayor Salida</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Lugar</th>
+                <th>Nombre del Producto</th>
+                <th>Cantidad Total Vendida</th>
+                <th>Dinero Generado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+<tr>
+<td>{{ loop.index }}°</td>
+<td>{{ producto['descripcion'] }}</td>
+<td><strong>{{ producto['total_vendido'] }}</strong> unidades</td>
+<td>$ {{ producto['total_dinero'] }}</td>
+</tr>
+{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

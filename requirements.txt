@@ -1,0 +1,6 @@
+Flask
+pandas
+qrcode
+pywebview
+waitress
+reportlab

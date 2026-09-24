@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div style="padding:20px; max-width: 900px; margin: auto;">
+
+    <h1 style="color: #1e8449;">📊 Reportes de "papeleria"</h1>
+
+    <div style="margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('productos_mas_vendidos') }}" class="btn btn-export" style="background: #27ae60; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none;">
+            🔥 Productos más vendidos
+        </a>
+
+        <a href="{{ url_for('corte_caja') }}" class="btn btn-export" style="background: #2980b9; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none;">
+            💰 Ver Corte Actual
+        </a>
+
+        <a href="{{ url_for('cerrar_caja') }}" class="btn btn-logout" style="background: #c0392b; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none;" onclick="return confirm('¿Estás seguro de cerrar la caja? El contador volverá a cero.')">
+            🔒 Cerrar Caja / Corte del Día
+        </a>
+    </div>
+
+    <hr style="border: 0.5px solid #ddd;">
+
+    <div style="background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+        <h3>📅 Consultar Historial por Rango</h3>
+        <form action="{{ url_for('corte_caja_rango') }}" method="get" style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label style="display: block; font-size: 12px;">Fecha inicio</label>
+                <input type="date" name="inicio" required style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 12px;">Fecha fin</label>
+                <input type="date" name="fin" required style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+            </div>
+            <button type="submit" class="btn btn-export" style="padding: 10px 20px; cursor: pointer;">
+                Generar reporte
+            </button>
+        </form>
+    </div>
+
+    <h3>✅ Últimos Cierres Guardados</h3>
+    <table style="width: 100%; border-collapse: collapse; background: white; color: #333; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <thead>
+        <tr style="background: #1e8449; color: white; text-align: left;">
+            <th style="padding: 12px;">Fecha y Hora</th>
+            <th style="padding: 12px;">Tickets</th>
+            <th style="padding: 12px;">Total</th>
+            <th style="padding: 12px;">Acción</th> </tr>
+    </thead>
+    <tbody>
+        {% for corte in cortes %}
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 12px;">{{ corte.fecha }}</td>
+            <td style="padding: 12px;">{{ corte.tickets }} ventas</td>
+            <td style="padding: 12px; font-weight: bold; color: #1e8449;">$ {{ "{:,.2f}".format(corte.total) }}</td>
+            <td style="padding: 12px;">
+                <a href="{{ url_for('detalle_corte', corte_id=corte.id) }}" style="background: #f39c12; color: white; padding: 5px 10px; border-radius: 3px; text-decoration: none; font-size: 12px;">
+                    🔍 Ver Detalles
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

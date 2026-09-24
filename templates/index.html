@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block contenido %}
+
+<style>
+/* --- TODO tu CSS aquí igual --- */
+.main-container {
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    padding-bottom: 40px;
+    background-image: url('{{ url_for("static", filename="config/" + (config.fondo if config.fondo else "fondo.jpg")) }}');
+    background-size: cover;
+    background-attachment: fixed;
+}
+.main-container::before {
+    content: "";
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background: rgba(255,255,255,0.6);
+    z-index: 0;
+}
+.main-container > * { position: relative; z-index: 1; }
+.logo img{ width:110px; border-radius:50%; box-shadow:0 4px 10px rgba(0,0,0,0.3);}
+.banner img{ width:90%; max-height:220px; object-fit:cover; border-radius:15px; margin-top:15px;}
+.welcome-card{ padding:20px;}
+h1{ font-size:2.4rem; color:#145a32; font-weight:bold;}
+p{ font-size:1.1rem; color:#2c3e50;}
+.btn-order{ display:inline-block; background:#e74c3c; color:white; padding:15px 30px; border-radius:30px; font-size:1.2rem; font-weight:bold; margin-top:15px; box-shadow:0 4px 10px rgba(0,0,0,0.3);}
+.productos{ margin-top:40px;}
+.grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:15px; padding:15px;}
+.card{ background:white; border-radius:15px; padding:15px; box-shadow:0 4px 10px rgba(0,0,0,0.2);}
+.card h3{ color:#2c3e50;}
+.card p{ color:#27ae60; font-weight:bold;}
+.info{ margin-top:30px;}
+.info p{ color:#2c3e50; font-weight:bold;}
+.disponibilidad{ background:#27ae60; color:white; padding:10px; border-radius:10px; margin-top:10px;}
+</style>
+
+<div class="main-container">
+
+    <!-- LOGO -->
+    <div class="logo">
+        <img src="{{ url_for('static', filename=(config.logo if config.logo else 'config/logo.png')) }}">
+    </div>
+
+    <!-- BANNER -->
+    
+        {% if config.banner %}
+<div class="banner">
+    <img src="{{ url_for('static', filename=config.banner) }}">
+</div>
+{% endif %}
+   
+
+    <!-- BIENVENIDA -->
+    <div class="welcome-card">
+        <h1>{{ config.nombre_negocio }}</h1>
+
+        <p>HOLA BIENVENIDO A TU TIENDA EN LINEA</p>
+
+        <p>Compra fácil y rápido desde tu celular</p>
+        <p>haz click en el siguiente boton </p>
+        <p>al final del proceso de compra no olvides hacer click en enviar por whattsapp para surtir tu pedido</p>
+
+
+
+
+        <a href="{{ url_for('zona') }}" class="btn-order">🛒 HACER PEDIDO</a>
+    </div>
+
+    <!-- INFO -->
+    <div class="info">
+        <p>📞 {{ config.telefono }}</p>
+        <div class="disponibilidad">⏰ Pedidos 24/7</div>
+        <div class="disponibilidad">📍 Pagas al recibir</div>
+        <div class="disponibilidad">🚚 Entregas rápidas</div>
+        <div class="disponibilidad">en el transcurso de las 24 hrs</div>
+    </div>
+
+</div>
+
+{% endblock %}

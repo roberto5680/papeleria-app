@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        margin-top: 15px;
+    }
+
+    th {
+        background: #34495e;
+        color: white;
+        padding: 12px;
+        text-align: left;
+    }
+
+    td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    tr:hover {
+        background-color: #e8f0fe;
+    }
+
+    .total {
+        text-align: right;
+        margin-top: 20px;
+        color: #27ae60;
+        font-weight: bold;
+        font-size: 18px;
+    }
+
+    .btn-volver {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 8px 12px;
+        background: #6c757d;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+
+    .btn-volver:hover {
+        background: #5a6268;
+    }
+
+    .btn-imprimir {
+        background: #28a745;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 15px;
+        margin-right: 10px;
+    }
+
+    .btn-imprimir:hover {
+        background: #218838;
+    }
+
+    /* Ocultar botones al imprimir */
+    @media print {
+        .btn-imprimir, .btn-volver {
+            display: none;
+        }
+    }
+</style>
+
+<div style="padding:20px;">
+    <h2>📋 Detalle del Corte #{{ corte.id }}</h2>
+    <p>Realizado el: <strong>{{ corte.fecha }}</strong></p>
+    
+    <table>
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Total</th>
+        </tr>
+        {% for item in detalles %}
+        <tr>
+            <td>{{ item.descripcion }}</td>
+            <td>{{ item.cant }}</td>
+            <td>$ {{ "{:,.2f}".format(item.total or 0) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <div class="total">
+        Total general: $ {{ "{:,.2f}".format(corte.total or 0) }}
+    </div>
+
+    <!-- BOTONES -->
+    <button onclick="imprimirCorte()" class="btn-imprimir">
+        🖨️ Imprimir Corte
+    </button>
+
+    <a href="{{ url_for('admin_reportes') }}" class="btn-volver">
+        ← Volver a Reportes
+    </a>
+</div>
+
+<script>
+function imprimirCorte() {
+    window.print();
+}
+</script>
+
+{% endblock %}

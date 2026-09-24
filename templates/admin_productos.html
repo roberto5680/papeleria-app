@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Productos / Inventario </title>
+<style>
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:0; }
+    .header { background:#2c3e50; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+    .header a { color:white; text-decoration:none; margin-left:10px; }
+    table { width:95%; margin:20px auto; border-collapse: collapse; background:white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    th, td { border:1px solid #ddd; padding:12px; text-align:center; }
+    th { background:#ecf0f1; color: #2c3e50; }
+    input[type="number"] { width:80px; padding:8px; border: 1px solid #ccc; border-radius: 4px; }
+    .btn-registrar { padding:15px 30px; border:none; border-radius:8px; cursor:pointer; background:#27ae60; color:white; font-weight:bold; font-size: 1rem; }
+    .btn-registrar:hover { background:#219150; }
+    .flash { padding:10px; margin:10px auto; width:95%; border-radius:5px; text-align:center; }
+    .flash.success { background:#d4edda; color:#155724; }
+    .flash.danger { background:#f8d7da; color:#721c24; }
+    .top-nav { width: 95%; margin: 15px auto; display: flex; justify-content: space-between; align-items: center; }
+    .top-nav a { margin-left:10px; text-decoration:none; padding:8px 15px; border-radius:4px; background:#e74c3c; color:white; font-size: 0.9rem; }
+    .card-excel { background-color: #ffffff; border: 2px solid #2c3e50; padding: 20px; border-radius: 15px; margin: 20px auto; width: 90%; max-width: 600px; box-shadow: 0px 4px 15px rgba(0,0,0,0.2); }
+    input[type="file"] { font-size: 0.8rem; max-width: 180px; }
+    .btn-ajuste { padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-ajuste.mas { background: #27ae60; color:white; }
+    .btn-ajuste.menos { background: #e74c3c; color:white; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>🚀 Panel Administrativo </div>
+    <div>
+        {% if session.get('admin_logueado') %}
+            <span>👤 {{ session.get('admin_usuario') }} | </span>
+            <a href="{{ url_for('admin_logout') }}">Cerrar sesión</a>
+        {% endif %}
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="top-nav">
+    <div class="nav-left">
+        <a href="{{ url_for('admin_dashboard') }}">🏠 Dashboard</a>
+    </div>
+    <a href="{{ url_for('ruta_limpiar_imagenes') }}" 
+       onclick="return confirm('¿Seguro? Se borrarán fotos sin uso.')">
+       🧹 Limpiar
+    </a>
+</div>
+
+<div style="width: 95%; margin: 20px auto;">
+    <input type="text" id="buscador" onkeyup="filtrarProductos()" placeholder="🔍 Buscar producto por nombre..." 
+           style="width: 100%; padding: 15px; font-size: 1.1rem; border: 2px solid #3498db; border-radius: 8px; box-sizing: border-box;">
+</div>
+<button onclick="window.open('/admin/exportar_excel', '_blank')"
+    style="background-color: #34495e; color: white; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; border: none;">
+    📥 Descargar Inventario (.xlsx)
+</button>
+    <form action="{{ url_for('importar_excel') }}" method="POST" enctype="multipart/form-data">
+        <input type="file" name="archivo_excel" accept=".xlsx, .xls" required style="width: 100%; margin-bottom: 15px; padding: 5px; border: 1px dashed #ccc;">
+        <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; font-size: 0.9rem;">
+            <label><input type="radio" name="modo_carga" value="sumar" checked> ➕ Sumar como compra masiva</label>
+            <label><input type="radio" name="modo_carga" value="reemplazar"> 🔄 Reemplazar inventario actual</label>
+        </div>
+        <button type="submit" style="width: 100%; background-color: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">📤 Subir y Aplicar Cambios</button>
+    </form>
+</div>
+
+<form method="POST" action="{{ url_for('admin_productos') }}" enctype="multipart/form-data">
+<table>
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>📸 Vista</th>
+            <th>Precio</th>
+            <th>Stock (rápido)</th>
+            <th>Ajuste manual</th>
+            <th>Imágenes</th>
+            <th>⭐ Destacado</th>
+        </tr>
+    </thead>
+  
+<tbody id="tabla-productos">
+    {% for p in productos %}
+    <tr class="fila-producto">
+        <td>
+            {{ p.codigo }}
+            <input type="hidden" name="codigos_productos[]" value="{{ p.codigo }}">
+        </td>
+
+        <td class="nombre-producto" style="text-align:left;">{{ p.descripcion }}</td>
+
+        <td>
+            {% if p.imagen %}
+                {% set imagenes = p.imagen.split(',') %}
+                {% for img in imagenes %}
+                <div style="margin-bottom:5px; display: inline-block; text-align: center; margin-right: 5px;">
+                    <a href="{{ url_for('static', filename='uploads/' + img.strip()) }}" target="_blank">
+                        <img src="{{ url_for('static', filename='uploads/' + img.strip()) }}" 
+                             style="width:45px; height:45px; object-fit:cover; border-radius:5px; border: 1px solid #ddd;">
+                    </a><br>
+                    <a href="{{ url_for('eliminar_imagen', codigo=p.codigo, img=img.strip()) }}"
+                       onclick="return confirm('¿Eliminar esta imagen?')"
+                       style="color:red; font-size:0.7rem; text-decoration: none;">❌</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <img src="{{ url_for('static', filename='productos/default.jpg') }}" 
+                     style="width:45px; height:45px; object-fit:cover; border-radius:5px; opacity: 0.6;">
+            {% endif %}
+        </td>
+        <td>
+    <input type="checkbox" name="destacado_{{ p.codigo }}"
+    {% if p.destacado == 1 %}checked{% endif %}>
+</td>
+        <td>
+            <div style="display:flex; gap:5px; justify-content:center;">
+                <input type="number" step="0.01" id="precio_{{ p.codigo }}" value="{{ p.precio }}" style="width:70px;">
+                <button type="button" onclick="actualizarPrecio('{{ p.codigo }}')">💲</button>
+            </div>
+        </td>
+
+        <td>
+            <div style="display:flex; align-items:center; justify-content:center; gap:5px;">
+                <button type="button" class="btn-ajuste menos" onclick="ajustarInventario('{{ p.codigo }}', -1)">-</button>
+                
+                {% if p.inventario <= 0 %}
+                    <span style="color:red; font-weight:bold;">{{ p.inventario }}</span>
+                {% elif p.inventario <= 3 %}
+                    <span style="color:orange; font-weight:bold;">{{ p.inventario }}</span>
+                {% else %}
+                    <span style="color:green; font-weight:bold;">{{ p.inventario }}</span>
+                {% endif %}
+                
+                <button type="button" class="btn-ajuste mas" onclick="ajustarInventario('{{ p.codigo }}', 1)">+</button>
+            </div>
+        </td>
+
+        <td>
+            <div style="display:flex; gap:5px; justify-content:center;">
+                <input type="number" name="inv_{{ p.codigo }}" placeholder="0" style="width:60px;">
+                <select name="tipo_{{ p.codigo }}">
+                    <option value="">--</option>
+                    <option value="compra">📦</option>
+                    <option value="salida">➖</option>
+                </select>
+            </div>
+        </td>
+
+        <td>
+            <input type="file" name="imagenes_{{ p.codigo }}[]" multiple>
+            <input type="hidden" name="codigo_imagen[]" value="{{ p.codigo }}">
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
+
+<div style="width:95%; margin:20px auto; text-align:center; padding-bottom: 40px;">
+    <button type="submit" class="btn-registrar">💾 Guardar Movimientos y Fotos</button>
+</div>
+</form>
+
+<script>
+function filtrarProductos() {
+    let input = document.getElementById("buscador").value.toLowerCase();
+    document.querySelectorAll(".fila-producto").forEach(fila => {
+        let nombre = fila.querySelector(".nombre-producto").innerText.toLowerCase();
+        fila.style.display = nombre.includes(input) ? "" : "none";
+    });
+}
+
+function actualizarPrecio(codigo) {
+    let input = document.getElementById("precio_" + codigo);
+    fetch(`/actualizar_precio/${codigo}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ nuevo_precio: input.value })
+    }).then(res => res.json())
+      .then(data => { if(data.ok){ alert('✅ Precio actualizado'); } })
+      .catch(err => alert('❌ Error de conexión'));
+}
+
+function ajustarInventario(codigo, cambio) {
+    fetch(`/admin/producto/ajustar/${codigo}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ cambio: cambio })
+    }).then(res => res.json())
+      .then(data => { if(data.ok){ location.reload(); } })
+      .catch(err => alert('❌ Error de conexión'));
+}
+</script>
+<script>
+function descargarInventario() {
+    window.location.href = "{{ url_for('exportar_excel') }}";
+}
+</script>
+
+</body>
+</html>
