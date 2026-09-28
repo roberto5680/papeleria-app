@@ -1304,61 +1304,122 @@ import io
 from flask import send_file
 
 #  IMPORTAR EXCEL (solo UNA vez)
+
 @app.route("/admin/importar_excel", methods=["POST"])
 @login_required
 def importar_excel():
     archivo = request.files.get("archivo_excel")
-    modo = request.form.get("modo_carga")
+    modo = request.form.get("modo_carga", "sumar")
 
-    if archivo:
+    if not archivo or not archivo.filename:
+        flash("Selecciona un archivo Excel.", "warning")
+        return redirect(url_for("admin_productos"))
+
+    if modo not in ["sumar", "reemplazar"]:
+        flash("Modo de carga no válido.", "danger")
+        return redirect(url_for("admin_productos"))
+
+    try:
         df = pd.read_excel(archivo)
         df.columns = df.columns.str.strip().str.lower()
+
+        columnas = {"codigo", "descripcion", "precio", "inventario"}
+        if not columnas.issubset(df.columns):
+            flash("El Excel no contiene todas las columnas requeridas.", "danger")
+            return redirect(url_for("admin_productos"))
+
+        productos = {}
+
+        for _, r in df.iterrows():
+            if pd.isna(r["codigo"]) or pd.isna(r["inventario"]):
+                continue
+
+            codigo = str(r["codigo"]).strip()
+            if codigo.endswith(".0") and codigo[:-2].isdigit():
+                codigo = codigo[:-2]
+
+            if not codigo:
+                continue
+
+            descripcion = "" if pd.isna(r["descripcion"]) else str(r["descripcion"]).strip()
+            precio = 0 if pd.isna(r["precio"]) else float(r["precio"])
+            cantidad = int(r["inventario"])
+
+            if cantidad < 0 or precio < 0:
+                raise ValueError(f"Cantidad o precio inválido en {codigo}")
+
+            productos[codigo] = (descripcion, precio, cantidad)
+
+        if not productos:
+            flash("El Excel no contiene artículos válidos. No se modificó el inventario.", "warning")
+            return redirect(url_for("admin_productos"))
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        for _, r in df.iterrows():
-            codigo = str(r.get("codigo")).strip()
-            descripcion = str(r.get("descripcion", "")).strip()
-            precio = r.get("precio")
-            cantidad_excel = r.get("inventario")
+        try:
+            # En modo reemplazar, quitar del catálogo
+            # los artículos que no aparecen en el Excel.
+            if modo == "reemplazar":
+                actuales = cursor.execute(
+                    "SELECT codigo FROM DATOS_PAPELERIA"
+                ).fetchall()
 
-            if codigo and pd.notna(cantidad_excel):
-                cantidad_int = int(cantidad_excel)
-                precio_valor = float(precio) if pd.notna(precio) else 0
+                codigos_excel = set(productos.keys())
 
-                existe = cursor.execute("""
-                    SELECT codigo FROM DATOS_PAPELERIA 
-                    WHERE TRIM(codigo) = ?
-                """, (codigo,)).fetchone()
+                for fila in actuales:
+                    if fila["codigo"] not in codigos_excel:
+                        cursor.execute(
+                            "DELETE FROM DATOS_PAPELERIA WHERE codigo = ?",
+                            (fila["codigo"],)
+                        )
+
+            # Insertar o actualizar los artículos del Excel.
+            for codigo, (descripcion, precio, cantidad) in productos.items():
+                existe = cursor.execute(
+                    "SELECT codigo FROM DATOS_PAPELERIA WHERE codigo = ?",
+                    (codigo,)
+                ).fetchone()
 
                 if existe:
                     if modo == "sumar":
                         cursor.execute("""
                             UPDATE DATOS_PAPELERIA
-                            SET inventario = inventario + ?, precio = ?, descripcion = ?
+                            SET inventario = inventario + ?,
+                                precio = ?,
+                                descripcion = ?
                             WHERE codigo = ?
-                        """, (cantidad_int, precio_valor, descripcion, codigo))
+                        """, (cantidad, precio, descripcion, codigo))
                     else:
                         cursor.execute("""
                             UPDATE DATOS_PAPELERIA
-                            SET inventario = ?, precio = ?, descripcion = ?
+                            SET inventario = ?,
+                                precio = ?,
+                                descripcion = ?
                             WHERE codigo = ?
-                        """, (cantidad_int, precio_valor, descripcion, codigo))
+                        """, (cantidad, precio, descripcion, codigo))
                 else:
                     cursor.execute("""
                         INSERT INTO DATOS_PAPELERIA
                         (codigo, descripcion, inventario, precio, imagen)
                         VALUES (?, ?, ?, ?, ?)
-                    """, (codigo, descripcion, cantidad_int, precio_valor, "default.jpg"))
+                    """, (codigo, descripcion, cantidad, precio, "default.jpg"))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
 
-        flash("Importación completada", "success")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        flash("Inventario reemplazado correctamente." if modo == "reemplazar"
+              else "Importación completada correctamente.", "success")
+
+    except Exception as e:
+        flash(f"Error al importar el Excel: {e}", "danger")
 
     return redirect(url_for("admin_productos"))
-
 
 #  EXPORTAR EXCEL (LO QUE TE FALTABA)
 import os
