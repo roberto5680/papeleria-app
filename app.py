@@ -10,6 +10,7 @@ import pandas as pd
 import qrcode
 import webview
 import threading
+import re
 from datetime import datetime
 from urllib.parse import quote
 from functools import wraps
@@ -706,20 +707,60 @@ def ver_carrito():
     # Es vital que diga 'return' al principio
     return mostrar_resumen_carrito('carrito.html')
 
+@app.route('/api/validar-cp', methods=['GET'])
+def validar_cp():
+    cp = request.args.get('cp', '').strip()
+    if not cp:
+        return jsonify({'valido': False, 'mensaje': 'Ingresa un código postal.'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT disponible FROM zonas_entrega WHERE codigo_postal = ?', (cp,))
+    resultado = cursor.fetchone()
+    conn.close()
+    
+    if resultado and resultado['disponible']:
+        return jsonify({'valido': True, 'mensaje': '✅ Cobertura disponible en esta zona.'})
+            
+    return jsonify({'valido': False, 'mensaje': '❌ Lo sentimos, aún no realizamos entregas en esta zona.'})
+
+
 @app.route('/confirmar_venta', methods=["GET", "POST"])
 def confirmar_venta():
 
     if request.method == "POST":
-        #  Guardar datos del cliente
+        cp_raw = request.form.get('codigo_postal', '').strip()
+
+        # Extraer únicamente la secuencia de 5 dígitos numéricos (ej. '70461' de 'macuil centro 70461')
+        match = re.search(r'\d{5}', cp_raw)
+        cp_cliente = match.group(0) if match else cp_raw
+
+        # 1. Validación en el Servidor (Flask)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT disponible FROM zonas_entrega WHERE TRIM(codigo_postal) = ?', (cp_cliente,))
+        resultado = cursor.fetchone()
+        conn.close()
+
+        es_valido = False
+        if resultado:
+            es_valido = bool(resultado['disponible'] if isinstance(resultado, dict) or hasattr(resultado, 'keys') else resultado[0])
+
+        if not es_valido:
+            # Si el CP no es válido o no tiene cobertura, recargamos la página con la advertencia
+            return mostrar_resumen_carrito('confirmar_venta.html', error_cp="No realizamos entregas en el código postal ingresado.")
+
+        # 2. Guardar datos del cliente en la sesión
         session['nombre_cliente'] = request.form.get('nombre')
         session['telefono_cliente'] = request.form.get('telefono')
         session['direccion_cliente'] = request.form.get('direccion')
+        session['codigo_postal_cliente'] = cp_cliente
         session['referencias_cliente'] = request.form.get('referencias')
 
-        #  Ir a venta_exitosa
+        # 3. Redirigir a venta_exitosa
         return redirect(url_for('venta_exitosa'))
 
-    # Si alguien entra por GET, solo mostrar resumen
+    # Si alguien entra por GET, mostrar el resumen
     return mostrar_resumen_carrito('confirmar_venta.html')
   
 @app.route("/acerca")
@@ -852,15 +893,58 @@ def obtener_datos_carrito():
             })
     conn.close()
     return {"productos": productos_en_carrito, "total": total}
+def mostrar_resumen_carrito(template_name, **kwargs):
+    conn = get_db_connection()
+    config = conn.execute("SELECT * FROM configuracion LIMIT 1").fetchone()
 
-def mostrar_resumen_carrito(template_name):
-    resumen = obtener_datos_carrito()
+    carrito_session = session.get("carrito", {})
+    productos = []
+    total = 0
+
+    if carrito_session:
+        claves = [str(k) for k in carrito_session.keys() if str(k).strip()]
+
+        if claves:
+            placeholders = ",".join(["?"] * len(claves))
+            
+            try:
+                items = conn.execute(f"SELECT * FROM DATOS_PAPELERIA WHERE codigo IN ({placeholders})", claves).fetchall()
+            except Exception:
+                items = conn.execute(f"SELECT * FROM DATOS_PAPELERIA WHERE rowid IN ({placeholders})", claves).fetchall()
+
+            for item in items:
+                keys = item.keys() if hasattr(item, 'keys') else []
+                
+                prod_id = item["id"] if "id" in keys else (item["codigo"] if "codigo" in keys else item[0])
+                prod_codigo = item["codigo"] if "codigo" in keys else str(prod_id)
+                prod_desc = item["descripcion"] if "descripcion" in keys else ""
+                prod_precio = item["precio"] if "precio" in keys else 0
+
+                cantidad = carrito_session.get(str(prod_codigo)) or carrito_session.get(str(prod_id)) or 0
+
+                if cantidad > 0:
+                    subtotal = prod_precio * cantidad
+                    total += subtotal
+                    productos.append({
+                        "id": prod_id,
+                        "codigo": prod_codigo,
+                        "descripcion": prod_desc,
+                        "nombre": prod_desc,
+                        "precio": prod_precio,
+                        "cantidad": cantidad,
+                        "subtotal": subtotal,
+                        "precio_total_producto": subtotal  # 🔥 Clave que requiere confirmar_venta.html
+                    })
+
+    conn.close()
+
     return render_template(
-        template_name, 
-        productos=resumen['productos'], 
-        total=resumen['total']
+        template_name,
+        productos=productos,
+        total=total,
+        config=config,
+        **kwargs
     )
-
 # -----------------------------
 # GENERAR TICKET PDF
 # -----------------------------
@@ -868,110 +952,86 @@ def generar_ticket_pdf(id_pedido, productos, total):
     if not productos:
         return None
 
-    #  datos del negocio
     conn = get_db_connection()
     config = conn.execute("SELECT * FROM configuracion WHERE id = 1").fetchone()
     conn.close()
 
-    nombre_negocio = config['nombre_negocio'] if config else "Mi Negocio"
-    direccion = config['direccion'] if config else ""
-    telefono = config['telefono'] if config else ""
+    nombre_negocio = config['nombre_negocio'] if config and 'nombre_negocio' in config.keys() else "Mi Negocio"
+    direccion = config['direccion'] if config and 'direccion' in config.keys() else ""
+    telefono = config['telefono'] if config and 'telefono' in config.keys() else ""
 
-    #  carpeta tickets
-    filename = os.path.join(TICKETS_FOLDER, f"ticket_{id_pedido}.pdf")
-    #  documento
+    if not os.path.exists(TICKETS_FOLDER):
+        os.makedirs(TICKETS_FOLDER, exist_ok=True)
+
+    filename_pdf = f"ticket_{id_pedido}.pdf"
+    filepath = os.path.join(TICKETS_FOLDER, filename_pdf)
+
     doc = SimpleDocTemplate(
-        filename,
-        pagesize=(80*mm, 200*mm),
-        rightMargin=3*mm,
-        leftMargin=3*mm,
-        topMargin=4*mm,
-        bottomMargin=4*mm
+        filepath,
+        pagesize=(80 * mm, 200 * mm),
+        rightMargin=3 * mm,
+        leftMargin=3 * mm,
+        topMargin=4 * mm,
+        bottomMargin=4 * mm
     )
 
     styles = getSampleStyleSheet()
+    style_center = styles['Normal'].clone('Center')
+    style_center.alignment = 1
+    style_center.fontSize = 8
+    style_center.leading = 10
+
+    style_header = styles['Heading1'].clone('Header')
+    style_header.alignment = 1
+    style_header.fontSize = 12
+    style_header.leading = 14
+
     story = []
+    story.append(Paragraph(f"<b>{nombre_negocio}</b>", style_header))
+    if direccion:
+        story.append(Paragraph(direccion, style_center))
+    if telefono:
+        story.append(Paragraph(f"Tel: {telefono}", style_center))
 
-    #  estilos
-    estilo_centro = styles['Normal'].clone('centro')
-    estilo_centro.alignment = 1
+    story.append(Spacer(1, 4 * mm))
+    story.append(Paragraph(f"<b>Ticket #:</b> {id_pedido}", style_center))
+    story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_center))
+    story.append(Spacer(1, 4 * mm))
 
-    estilo_producto = styles['Normal'].clone('producto')
-    estilo_producto.fontSize = 8
-
-    estilo_total = styles['Normal'].clone('total')
-    estilo_total.alignment = 1
-    estilo_total.fontSize = 12
-
-    # -------------------------
-    # ENCABEZADO
-    # -------------------------
-    story.append(Paragraph(f"<b>{nombre_negocio}</b>", estilo_centro))
-    story.append(Paragraph(direccion, estilo_centro))
-    story.append(Paragraph(telefono, estilo_centro))
-    story.append(Spacer(1, 5))
-
-    story.append(Paragraph(f"Ticket: #{id_pedido}", estilo_centro))
-    story.append(Paragraph(datetime.now().strftime('%d/%m/%Y %H:%M'), estilo_centro))
-    story.append(Paragraph("-" * 32, estilo_centro))
-
-    # -------------------------
-    # TABLA PRODUCTOS
-    # -------------------------
-    data = [["Cant", "Producto", "Total"]]
-
+    tabla_datos = [["Cant", "Descripción", "P.U.", "Subt."]]
     for p in productos:
-        data.append([
-            Paragraph(str(p['cantidad']), styles['Normal']),
-            Paragraph(p['descripcion'], estilo_producto),
-            Paragraph(f"${p['precio_total_producto']:.2f}", styles['Normal'])
+        desc = p.get('descripcion', '')
+        if len(desc) > 16:
+            desc = desc[:14] + ".."
+        tabla_datos.append([
+            str(p.get('cantidad', 1)),
+            desc,
+            f"${p.get('precio', 0.0):.2f}",
+            f"${p.get('precio_total_producto', p.get('subtotal', 0.0)):.2f}"
         ])
 
-    tabla = Table(data, colWidths=[15*mm, 45*mm, 20*mm])
+    tabla_datos.append(["", "", "TOTAL:", f"${total:.2f}"])
 
+    tabla = Table(tabla_datos, colWidths=[10 * mm, 32 * mm, 16 * mm, 16 * mm])
     tabla.setStyle(TableStyle([
-        ("GRID", (0,0), (-1,-1), 0.3, colors.grey),
-        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
-        ("ALIGN", (0,0), (0,-1), "CENTER"),
-        ("ALIGN", (2,0), (2,-1), "RIGHT"),
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 7),
+        ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
+        ('LINEABOVE', (0, -1), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
     ]))
 
     story.append(tabla)
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, 6 * mm))
+    story.append(Paragraph("¡Gracias por su compra!", style_center))
 
-    # -------------------------
-    # TOTAL
-    # -------------------------
-    story.append(Paragraph("-" * 32, estilo_centro))
-    story.append(Paragraph(f"<b>TOTAL: ${total:.2f}</b>", estilo_total))
-
-    # -------------------------
-    # QR
-    # -------------------------
-    url_qr = f"http://127.0.0.1:5001/ticket/{id_pedido}"
-
-    qr = qrcode.make(url_qr)
-    qr_buffer = BytesIO()
-    qr.save(qr_buffer, format='PNG')
-    qr_buffer.seek(0)
-
-    story.append(Spacer(1, 10))
-    story.append(Image(qr_buffer, width=35*mm, height=35*mm))
-
-    story.append(Spacer(1, 5))
-    story.append(Paragraph("Escanea para ver tu ticket", estilo_centro))
-
-    # -------------------------
-    # PIE
-    # -------------------------
-    story.append(Spacer(1, 5))
-    story.append(Paragraph("¡Gracias por su compra!", estilo_centro))
-
-    # 🔹 generar PDF
-    doc.build(story)
-
-    return filename
+    try:
+        doc.build(story)
+        return filename_pdf
+    except Exception as e:
+        print(f"Error generando PDF: {e}")
+        return None
 @app.route('/ver_ticket/<path:filename>')
 def ver_ticket(filename):
     import os
@@ -1845,6 +1905,63 @@ def actualizar_tabla_configuracion():
 
     conn.commit()
     conn.close()
+# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
+
+# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
+
+
+# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
+
+@app.route('/admin/zonas_entrega', methods=['GET', 'POST'])
+def admin_zonas_entrega():
+    if not session.get('admin_logueado'):
+        return redirect('/admin/login')
+
+    conn = get_db_connection()
+
+    # Crear la tabla automáticamente si aún no existe en database.db
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS zonas_entrega (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_postal TEXT UNIQUE NOT NULL,
+            disponible INTEGER DEFAULT 1
+        )
+    ''')
+    conn.commit()
+
+    if request.method == 'POST':
+        nuevo_cp = request.form.get('codigo_postal', '').strip()
+        if nuevo_cp and len(nuevo_cp) == 5:
+            conn.execute('''
+                INSERT INTO zonas_entrega (codigo_postal, disponible) 
+                VALUES (?, 1)
+                ON CONFLICT(codigo_postal) DO UPDATE SET disponible = 1
+            ''', (nuevo_cp,))
+            conn.commit()
+
+    zonas = conn.execute('SELECT * FROM zonas_entrega ORDER BY codigo_postal ASC').fetchall()
+    conn.close()
+
+    return render_template('admin_zonas.html', zonas=zonas)
+
+
+@app.route('/admin/zonas_entrega/cambiar_estado/<int:zona_id>')
+def cambiar_estado_zona(zona_id):
+    if not session.get('admin_logueado'):
+        return redirect('/admin/login')
+
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE zonas_entrega 
+        SET disponible = CASE WHEN disponible = 1 THEN 0 ELSE 1 END 
+        WHERE id = ?
+    ''', (zona_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('admin_zonas_entrega'))
+
+
 # -----------------------------
 # SERVIDOR
 # -----------------------------
@@ -1855,13 +1972,32 @@ MODO = "app"  #  CAMBIA AQUÍ: "web" o "app"
 if __name__ == "__main__":
 
     conn = sqlite3.connect(DB_PATH)
+def actualizar_tablas():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Agregar columna 'precio_unit' si no existe
     try:
-        conn.execute("ALTER TABLE DATOS_PAPELERIA ADD COLUMN destacado INTEGER DEFAULT 0")
-        print(" Columna destacado creada al iniciar")
-    except Exception as e:
-        print(" Ya existe:", e)
+        cursor.execute("ALTER TABLE venta_detalle ADD COLUMN precio_unit REAL")
+    except Exception:
+        pass
+
+    # Agregar columna 'destacado' si no existe
+    try:
+        cursor.execute("ALTER TABLE DATOS_PAPELERIA ADD COLUMN destacado INTEGER DEFAULT 0")
+        print("Columna 'destacado' agregada correctamente.")
+    except Exception:
+        pass  # Si ya existe, ignora el error silenciosamente
+
     conn.commit()
     conn.close()
+
+def iniciar_flask():
+    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+
+MODO = "app"  # "web" o "app"
+
+if __name__ == "__main__":
 
     # 1. PREPARAR CARPETAS
     for carpeta in [DB_FOLDER, PRODUCTOS_FOLDER, TICKETS_FOLDER]:
@@ -1879,8 +2015,6 @@ if __name__ == "__main__":
     cargar_excel_automatico()
 
     print("Sistema listo")
-    def iniciar_flask():
-        app.run(host="0.0.0.0", port=5000)
 
     if MODO == "app":
         print("Modo APP iniciado")
@@ -1893,7 +2027,7 @@ if __name__ == "__main__":
         webview.start()
 
     elif MODO == "web":
-        print("Modo WEB iniciado en http://0.0.0.0:5001")
+        print("Modo WEB iniciado en http://127.0.0.1:5001")
         app.run(host="0.0.0.0", port=5001)
 
     else:

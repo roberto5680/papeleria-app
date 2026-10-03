@@ -97,27 +97,28 @@
 
 <body>
 
-<nav>
-    {% if config.logo %}
-        <img src="{{ url_for('static', filename=config.logo) }}" class="logo">
-    {% else %}
-        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
-    {% endif %}
+	<nav>
+		{% if config.logo %}
+		<img src="{{ url_for('static', filename=config.logo) }}" class="logo">
+			{% else %}
+			<img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+				{% endif %}
 
-    <div class="titulo">
-        {{ config.nombre_negocio or "papeleria" }}
-    </div>
+				<div class="titulo">
+					{{ config.nombre_negocio or "papeleria" }}
+				</div>
 
-    <!-- SOLO UN MENU (SIN DUPLICADOS) -->
-    <a href="/" class="btn-main">🏠 Inicio</a>
-    <a href="/catalogo" class="btn-main">📦 Catálogo</a>
-    <a href="{{ url_for('acerca') }}" class="btn-main">ℹ️ Acerca</a>
+				<!-- SOLO UN MENU (SIN DUPLICADOS) -->
+				<a href="/" class="btn-main">🏠 Inicio</a>
+				<a href="/catalogo" class="btn-main">📦 Catálogo</a>
+				<a href="{{ url_for('acerca') }}" class="btn-main">ℹ️ Acerca</a>
 
-    {% if session.get('admin_logueado') %}
-        <a href="{{ url_for('admin_dashboard') }}" class="btn-admin">⚙ Panel</a>
-        <a href="{{ url_for('admin_logout') }}" class="btn-logout">🔒 Salir</a>
-    {% endif %}
-</nav>
+				{% if session.get('admin_logueado') %}
+				<a href="{{ url_for('admin_dashboard') }}" class="btn-admin">⚙ Panel</a>
+				<a href="{{ url_for('admin_zonas_entrega') }}" class="btn-admin">📍 Zonas de Entrega</a>
+				<a href="{{ url_for('admin_logout') }}" class="btn-logout">🔒 Salir</a>
+				{% endif %}
+			</nav>
 
 <div class="content">
 

@@ -1,0 +1,10 @@
+database.db
+password.txt
+respaldos/
+build/
+dist/
+instalador/
+papeleria-app/
+papeleria_web/
+__pycache__/
+*.pyc

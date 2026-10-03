@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<div style="max-width: 700px; margin: 40px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    
+    <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📍 Configuración de Zonas de Entrega</h2>
+    
+    <!-- Formulario para agregar nuevo Código Postal -->
+    <form action="{{ url_for('admin_zonas_entrega') }}" method="POST" style="margin-bottom: 30px; background: #f8f9fa; padding: 15px; border-radius: 8px;">
+        <label for="codigo_postal" style="font-weight: bold; color: #34495e; display: block; margin-bottom: 8px;">Agregar nuevo Código Postal:</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="codigo_postal" name="codigo_postal" placeholder="Ej. 68040" maxlength="5" required pattern="\d{5}" style="padding: 10px; border: 1px solid #ccc; border-radius: 5px; flex-grow: 1; font-size: 15px;">
+            <button type="submit" style="background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">➕ Agregar CP</button>
+        </div>
+    </form>
+
+    <!-- Tabla de Códigos Postales Existentes -->
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background-color: #2c3e50; color: white;">
+                <th style="padding: 12px; text-align: left;">Código Postal</th>
+                <th style="padding: 12px; text-align: center;">Estado</th>
+                <th style="padding: 12px; text-align: center;">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for zona in zonas %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; font-weight: bold;">
+                    {{ zona['codigo_postal'] if zona['codigo_postal'] is defined else zona[1] }}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    {% set disp = zona['disponible'] if zona['disponible'] is defined else zona[2] %}
+                    {% if disp %}
+                        <span style="background-color: #d4edda; color: #155724; padding: 5px 12px; border-radius: 15px; font-size: 13px; font-weight: bold;">✅ Disponible</span>
+                    {% else %}
+                        <span style="background-color: #f8d7da; color: #721c24; padding: 5px 12px; border-radius: 15px; font-size: 13px; font-weight: bold;">❌ No disponible</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 12px; text-align: center;">
+                    {% set zona_id = zona['id'] if zona['id'] is defined else zona[0] %}
+                    <a href="{{ url_for('cambiar_estado_zona', zona_id=zona_id) }}" style="text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; background-color: #3498db; color: white;">
+                        🔄 Cambiar Estado
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" style="padding: 20px; text-align: center; color: #7f8c8d;">No hay zonas registradas aún.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+{% endblock %}
