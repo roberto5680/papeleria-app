@@ -69,7 +69,22 @@
 
         .btn-vaciar { background: #e74c3c; color: white; }
         .btn-volver { background: #3498db; color: white; text-decoration: none; }
-        .btn-confirmar { background: #2ecc71; color: white; margin-top: 10px; }
+        .btn-confirmar {
+    display: block;
+    width: 100%;
+    padding: 12px 15px;
+    margin-top: 10px;
+    background: #2ecc71;
+    color: white;
+    text-decoration: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
 
         .cantidad-botones {
             display: flex;
@@ -168,7 +183,7 @@
     <h3>🚚 Datos de entrega</h3>
 
     <a href="{{ url_for('confirmar_venta') }}" class="btn-confirmar">
-        ✅ Continuar con datos de entrega
+        ✅ Confirmar pedido
     </a>
 
 {% else %}

@@ -135,6 +135,20 @@ p {
 
 <p>¡Gracias por tu compra! Ya estamos preparando tus productos recuerda que pagas al recivir tu material aceptamos efectivo o transferencia para tu comodidad.</p>
 {% if total > 0 %}
+<div style="
+    background:#fff3cd;
+    border:1px solid #ffc107;
+    color:#856404;
+    padding:14px;
+    border-radius:10px;
+    margin-top:20px;
+    margin-bottom:15px;
+    font-weight:bold;
+    line-height:1.4;
+">
+    📲 No olvides darle clic en <strong>“Enviar pedido por WhatsApp”</strong>
+    para enviar tu pedido.
+</div>
 <div style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
     
     <a href="{{ url_for('ver_ticket', filename=pdf_filename) }}" 
