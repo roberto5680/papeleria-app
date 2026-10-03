@@ -1,150 +1,156 @@
 {% extends "base.html" %}
 
 {% block contenido %}
-
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-```
-<title>Confirmar Venta - papeleria</title>
-
-<style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        margin: 40px;
-        background-color: #f4f7f6;
-    }
-
-    .container {
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        max-width: 600px;
-        margin: auto;
-    }
-
-    h1 {
-        color: #2c3e50;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-        margin-top: 0;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-    }
-
-    th, td {
-        padding: 12px;
-        border-bottom: 1px solid #eee;
-        text-align: left;
-    }
-
-    .total-box {
-        background-color: #e8f4fd;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: right;
-        margin-bottom: 20px;
-    }
-
-    .acciones {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 30px;
-        align-items: center;
-    }
-
-    .btn {
-        padding: 12px 25px;
-        border-radius: 5px;
-        text-decoration: none;
-        font-weight: bold;
-        border: none;
-        cursor: pointer;
-    }
-
-    .btn-cancelar {
-        background-color: #95a5a6;
-        color: white;
-    }
-
-    .btn-confirmar {
-        background-color: #27ae60;
-        color: white;
-    }
-
-    .alerta-mostrador {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 15px;
-        border-radius: 5px;
-        border-left: 5px solid #ffeeba;
-        margin-top: 20px;
-        font-weight: bold;
-    }
-</style>
-```
-
+    <title>Confirmar Venta - papeleria</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f4f7f6; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        .total-box { background-color: #e8f4fd; padding: 15px; border-radius: 8px; text-align: right; margin-bottom: 20px; }
+        .acciones { display: flex; justify-content: space-between; margin-top: 30px; align-items: center; }
+        .btn { padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; }
+        .btn-cancelar { background-color: #95a5a6; color: white; }
+        .btn-confirmar { background-color: #27ae60; color: white; }
+        .btn-confirmar:disabled { background-color: #cccccc; cursor: not-allowed; opacity: 0.7; }
+        .alerta-mostrador { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border-left: 5px solid #ffeeba; margin-top: 20px; font-weight: bold; }
+        
+        /* Estilos añadidos para los campos de entrega */
+        .form-datos { margin-top: 20px; text-align: left; }
+        .campo-grupo { margin-bottom: 15px; }
+        .campo-grupo label { display: block; margin-bottom: 5px; font-weight: bold; color: #2c3e50; }
+        .campo-grupo input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
+        .mensaje-validacion { margin-top: 5px; font-weight: bold; font-size: 13px; display: block; }
+        .alerta-error { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; border: 1px solid #f5c6cb; margin-bottom: 15px; }
+    </style>
 </head>
-
 <body>
+    <div class="container">
+        <h1>Confirmación de Venta</h1>
+        
+        <div class="total-box">
+            <h2 style="margin: 0; color: #2c3e50;">Total a Pagar: ${{ "%.2f"|format(total) }}</h2>
+        </div>
 
-```
-<div class="container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cant.</th>
+                    <th>Precio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr>
+                    <td>{{ producto.descripcion }}</td>
+                    <td>{{ producto.cantidad }}</td>
+                    <td>${{ "%.2f"|format(producto.precio_total_producto) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    <h1>Confirmación de Venta</h1>
+        <!-- Formulario completo que envía los datos hacia confirmar_venta -->
+        <form action="{{ url_for('confirmar_venta') }}" method="POST" id="form-pedido">
+            
+            {% if error_cp %}
+            <div class="alerta-error">
+                ⚠️ {{ error_cp }}
+            </div>
+            {% endif %}
 
-    <div class="total-box">
-        <h2 style="margin: 0; color: #2c3e50;">
-            Total a Pagar: ${{ "%.2f"|format(total) }}
-        </h2>
+            <div class="form-datos">
+                <h3>Datos de Entrega</h3>
+                
+                <div class="campo-grupo">
+                    <label for="nombre">Nombre completo:</label>
+                    <input type="text" id="nombre" name="nombre" placeholder="Ej. Juan Pérez" required>
+                </div>
+
+                <div class="campo-grupo">
+                    <label for="telefono">Teléfono:</label>
+                    <input type="tel" id="telefono" name="telefono" placeholder="Ej. 9511234567" required>
+                </div>
+
+                <div class="campo-grupo">
+                    <label for="direccion">Dirección completa:</label>
+                    <input type="text" id="direccion" name="direccion" placeholder="Calle, número, colonia" required>
+                </div>
+
+                <div class="campo-grupo">
+                    <label for="codigo_postal">Código Postal de entrega:</label>
+                    <input type="text" id="codigo_postal" name="codigo_postal" placeholder="Ej. 68000" maxlength="5" required>
+                    <span id="mensaje-cp" class="mensaje-validacion"></span>
+                </div>
+
+                <div class="campo-grupo">
+                    <label for="referencias">Referencias (opcional):</label>
+                    <input type="text" id="referencias" name="referencias" placeholder="Ej. Casa color azul, frente al parque">
+                </div>
+            </div>
+
+            <div class="alerta-mostrador">
+                📢 Favor de pagar al recibir su mercancía.
+            </div>
+
+            <div class="acciones">
+                <a href="/carrito" class="btn btn-cancelar">⬅️ Corregir</a>
+                <button type="submit" id="btn-confirmar" class="btn btn-confirmar" disabled>✅ Finalizar Pedido</button>
+            </div>
+        </form>
+
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Cant.</th>
-                <th>Precio</th>
-            </tr>
-        </thead>
+    <!-- Validación en tiempo real para el Código Postal -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputCP = document.getElementById('codigo_postal');
+        const mensajeCP = document.getElementById('mensaje-cp');
+        const btnConfirmar = document.getElementById('btn-confirmar');
 
-        <tbody>
-            {% for producto in productos %}
-            <tr>
-                <td>{{ producto.descripcion }}</td>
-                <td>{{ producto.cantidad }}</td>
-                <td>${{ "%.2f"|format(producto.precio_total_producto) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        if (inputCP) {
+            inputCP.addEventListener('input', function() {
+                const cp = this.value.trim();
 
-    <div class="alerta-mostrador">
-        📢 Favor de pagar al recibir su mercancía.
-    </div>
+                // Si el CP aún no tiene 5 dígitos, mantener botón deshabilitado
+                if (cp.length < 5) {
+                    mensajeCP.textContent = 'Ingresa los 5 dígitos de tu código postal.';
+                    mensajeCP.style.color = '#7f8c8d';
+                    btnConfirmar.disabled = true;
+                    return;
+                }
 
-    <div class="acciones">
-
-        <a href="/carrito" class="btn btn-cancelar">
-            ⬅️ Corregir
-        </a>
-
-        <a href="{{ url_for('zona') }}" class="btn btn-confirmar">
-            ✅ Continuar con datos de entrega
-        </a>
-
-    </div>
-
-</div>
-```
-
+                // Consultar API de Flask creada en app.py
+                fetch(`/api/validar-cp?cp=${cp}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.valido) {
+                            mensajeCP.style.color = '#27ae60';
+                            mensajeCP.textContent = data.mensaje;
+                            btnConfirmar.disabled = false; // Habilitar el botón
+                        } else {
+                            mensajeCP.style.color = '#c0392b';
+                            mensajeCP.textContent = data.mensaje;
+                            btnConfirmar.disabled = true; // Mantener bloqueado
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error al validar código postal:', err);
+                        mensajeCP.style.color = '#e67e22';
+                        mensajeCP.textContent = 'Error al comprobar cobertura. Intenta nuevamente.';
+                        btnConfirmar.disabled = true;
+                    });
+            });
+        }
+    });
+    </script>
 </body>
 </html>
 
