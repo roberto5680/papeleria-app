@@ -167,26 +167,9 @@
 {% if productos %}
     <h3>🚚 Datos de entrega</h3>
 
-    <form method="POST" action="{{ url_for('confirmar_venta') }}">
-        <label>👤 Nombre del cliente</label>
-        <input type="text" name="nombre" placeholder="Tu nombre completo" required>
-
-        <label>📞 Teléfono</label>
-        <input type="tel" name="telefono" placeholder="Ej: 1234567890" required>
-
-        <label>🏠 Dirección</label>
-        <textarea name="direccion" rows="3" placeholder="Calle, número, colonia..." required></textarea>
-
-        <label>📝 Referencias (opcional)</label>
-        <textarea name="referencias" rows="2" placeholder="Color de casa, entre calles..."></textarea>
-
-        <div style="background:#fff3cd; border:1px solid #ffeeba; padding:12px; border-radius:8px; margin-bottom:15px; font-size: 0.9rem;">
-            <strong>📌 Importante:</strong><br>
-            Pago contra entrega (efectivo o transferencia).
-        </div>
-
-        <button type="submit" class="btn-confirmar">✅ Confirmar pedido</button>
-    </form>
+    <a href="{{ url_for('confirmar_venta') }}" class="btn-confirmar">
+        ✅ Continuar con datos de entrega
+    </a>
 
 {% else %}
     <div style="text-align: center; padding: 40px 20px;">
