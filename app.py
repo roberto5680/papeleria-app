@@ -12,6 +12,7 @@ import webview
 import threading
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import quote
 from functools import wraps
 from io import BytesIO
@@ -146,8 +147,8 @@ def resource_path(relative_path):
 BASE_DIR = obtener_ruta_base()
 
 # 2. Carpeta de Base de Datos (Fija en C:)
-DB_FOLDER = r"C:\abarrotes_app"
-DB_PATH = os.path.join(DB_FOLDER, "DATOS_PAPELERIA.db")
+DB_FOLDER = BASE_DIR
+DB_PATH = os.path.join(BASE_DIR, "C:\\abarrotes_app", "DATOS_PAPELERIA.db")
 
 # 3. Carpetas de Archivos Externos (Deben estar junto al .exe para poder escribir en ellas)
 # IMPORTANTE: Estas NO deben estar dentro de la carpeta temporal _MEIPASS
@@ -219,7 +220,7 @@ def cargar_excel_automatico():
 
 app = Flask(__name__,
             # 'static' debe apuntar a la carpeta EXTERNA junto al .exe
-            static_folder=os.path.join(BASE_DIR, 'static'), 
+            static_folder=os.path.join(BASE_DIR, 'static'),
             # 'templates' debe apuntar a la carpeta INTERNA (dentro del .exe)
             template_folder=resource_path('templates'))
 
@@ -405,7 +406,7 @@ def crear_tablas():
         columnas = [row[1] for row in cursor.fetchall()]
         return columna in columnas
 
-   
+
     conn.commit()
     conn.close()
 
@@ -452,7 +453,7 @@ def limpiar_fotos_huerfanas():
     cursor = conn.cursor()
     cursor.execute("SELECT imagen FROM DATOS_PAPELERIA WHERE imagen IS NOT NULL")
     filas = cursor.fetchall()
-    
+
     nombres_en_db = set()
     for fila in filas:
         if fila['imagen']:
@@ -502,17 +503,17 @@ def inject_config():
     try:
         conn = get_db_connection()
         #  ESTA LÍNEA ES CLAVE: Convierte la fila en algo que el HTML entiende por nombre
-        conn.row_factory = sqlite3.Row 
-        
+        conn.row_factory = sqlite3.Row
+
         config = conn.execute("SELECT * FROM configuracion WHERE id = 1").fetchone()
         conn.close()
-        
+
         # Si config existe, lo pasamos tal cual; si no, un diccionario con valores por defecto
         if config:
             return {'config': config}
         else:
             return {'config': {'nombre_negocio': 'papeleria', 'logo': 'logo.png'}}
-            
+
     except Exception as e:
         print(f"Error en inject_config: {e}")
         return {'config': {}}
@@ -528,30 +529,30 @@ import pandas as pd
 def subir_imagen():
     codigos = request.form.getlist('codigo_imagen[]')
     files = request.files.getlist('imagenes[]')
-    
+
     conn = get_db_connection()
-    
+
     for i, file in enumerate(files):
         if file and file.filename != '':
             filename = secure_filename(file.filename)
             # Guardamos en la ruta del EXE (static/uploads)
             ruta_destino = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(ruta_destino)
-            
+
             if i < len(codigos):
                 codigo_p = codigos[i]
-                
+
                 # Buscamos qué fotos ya tiene el producto para NO borrarlas
                 prod = conn.execute("SELECT imagen FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo_p,)).fetchone()
-                
+
                 if prod and prod['imagen']:
                     # Si ya tiene fotos, sumamos la nueva con una coma
                     nuevas_fotos = f"{prod['imagen']},{filename}"
                 else:
                     nuevas_fotos = filename
-                
+
                 conn.execute("UPDATE DATOS_PAPELERIA SET imagen = ? WHERE codigo = ?", (nuevas_fotos, codigo_p))
-    
+
     conn.commit()
     conn.close()
     return redirect(url_for('admin_productos'))
@@ -561,8 +562,8 @@ def index():
     conn = get_db_connection()
 
     tablas = conn.execute("PRAGMA table_info(DATOS_PAPELERIA)").fetchall()
-    
-    
+
+
     conn = get_db_connection()
 
     productos = conn.execute("""
@@ -617,7 +618,7 @@ def catalogo():
         else:
             # Si no hay nada, lista con la imagen por defecto
             p['fotos_lista'] = ["productos/default.jpg"]
-            
+
     return render_template("catalogo.html", productos=productos)
 @app.route("/buscar_rapido")
 def buscar_rapido():
@@ -648,7 +649,7 @@ def agregar(codigo):
         session['carrito'] = carrito
         session.modified = True
         return jsonify(ok=True)
-    
+
     return jsonify(ok=False, mensaje="Producto no encontrado")
 
 # =========================================================
@@ -712,16 +713,16 @@ def validar_cp():
     cp = request.args.get('cp', '').strip()
     if not cp:
         return jsonify({'valido': False, 'mensaje': 'Ingresa un código postal.'}), 400
-    
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT disponible FROM zonas_entrega WHERE codigo_postal = ?', (cp,))
     resultado = cursor.fetchone()
     conn.close()
-    
+
     if resultado and resultado['disponible']:
         return jsonify({'valido': True, 'mensaje': '✅ Cobertura disponible en esta zona.'})
-            
+
     return jsonify({'valido': False, 'mensaje': '❌ Lo sentimos, aún no realizamos entregas en esta zona.'})
 
 
@@ -762,7 +763,7 @@ def confirmar_venta():
 
     # Si alguien entra por GET, mostrar el resumen
     return mostrar_resumen_carrito('confirmar_venta.html')
-  
+
 @app.route("/acerca")
 def acerca():
     return render_template("acerca.html")
@@ -803,7 +804,7 @@ def venta_exitosa():
     # Guardamos detalle y actualizamos inventario
     for p in productos:
         cursor.execute("""
-            INSERT INTO venta_detalle 
+            INSERT INTO venta_detalle
             (venta_id, codigo, descripcion, cantidad, precio_unit, subtotal)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (
@@ -827,12 +828,15 @@ def venta_exitosa():
     # -----------------------------
     pdf_filename = generar_ticket_pdf(id_pedido, productos, total_venta)
 
+
     # -----------------------------
     # DATOS DEL CLIENTE
     # -----------------------------
-    nombre = session.get('nombre_cliente', 'No especificado')
-    telefono = session.get('telefono_cliente', 'No especificado')
-    direccion = session.get('direccion_cliente', 'No especificado')
+    nombre = session.get('nombre_cliente') or 'No especificado'
+    telefono = session.get('telefono_cliente') or 'No especificado'
+    direccion = session.get('direccion_cliente') or 'No especificado'
+    codigo_postal = session.get('codigo_postal_cliente') or 'No especificado'
+    referencias = session.get('referencias_cliente') or 'Sin referencias'
 
     # -----------------------------
     # MENSAJE PARA WHATSAPP
@@ -841,7 +845,9 @@ def venta_exitosa():
         f" *NUEVO PEDIDO: #{id_pedido}*\n\n"
         f" *Cliente:* {nombre}\n"
         f" *Teléfono:* {telefono}\n"
-        f" *Dirección:* {direccion}\n\n"
+        f" *Código postal:* {codigo_postal}\n"
+        f" *Dirección:* {direccion}\n"
+        f" *Referencias:* {referencias}\n\n"
         f"{lista_texto}\n"
         f"*TOTAL A PAGAR: ${total_venta:.2f}*\n\n"
         f" Pago al recibir la mercancía."
@@ -866,8 +872,8 @@ def nuevo_cliente():
     session.pop('carrito', None)
     session.pop('zona', None)
     session.pop('nombre_cliente', None)
-    
-    # Al redireccionar a 'index', el decorador @zona_requerida 
+
+    # Al redireccionar a 'index', el decorador @zona_requerida
     # detectará que no hay zona y lo mandará directo a elegir una.
     return redirect(url_for("index"))
 def obtener_datos_carrito():
@@ -875,7 +881,7 @@ def obtener_datos_carrito():
     productos_en_carrito = []
     total = 0.0
     conn = get_db_connection()
-    
+
     for codigo, cantidad in carrito.items():
         row = conn.execute("SELECT codigo, descripcion, precio FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
         if row:
@@ -885,10 +891,10 @@ def obtener_datos_carrito():
             item_total = precio_val * cantidad
             total += item_total
             productos_en_carrito.append({
-                "codigo": p["codigo"], 
-                "descripcion": p["descripcion"], 
-                "precio": precio_val, 
-                "cantidad": cantidad, 
+                "codigo": p["codigo"],
+                "descripcion": p["descripcion"],
+                "precio": precio_val,
+                "cantidad": cantidad,
                 "precio_total_producto": item_total
             })
     conn.close()
@@ -906,7 +912,7 @@ def mostrar_resumen_carrito(template_name, **kwargs):
 
         if claves:
             placeholders = ",".join(["?"] * len(claves))
-            
+
             try:
                 items = conn.execute(f"SELECT * FROM DATOS_PAPELERIA WHERE codigo IN ({placeholders})", claves).fetchall()
             except Exception:
@@ -914,7 +920,7 @@ def mostrar_resumen_carrito(template_name, **kwargs):
 
             for item in items:
                 keys = item.keys() if hasattr(item, 'keys') else []
-                
+
                 prod_id = item["id"] if "id" in keys else (item["codigo"] if "codigo" in keys else item[0])
                 prod_codigo = item["codigo"] if "codigo" in keys else str(prod_id)
                 prod_desc = item["descripcion"] if "descripcion" in keys else ""
@@ -992,34 +998,122 @@ def generar_ticket_pdf(id_pedido, productos, total):
         story.append(Paragraph(direccion, style_center))
     if telefono:
         story.append(Paragraph(f"Tel: {telefono}", style_center))
-
-    story.append(Spacer(1, 4 * mm))
-    story.append(Paragraph(f"<b>Ticket #:</b> {id_pedido}", style_center))
-    story.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}", style_center))
     story.append(Spacer(1, 4 * mm))
 
-    tabla_datos = [["Cant", "Descripción", "P.U.", "Subt."]]
+    # Fecha y hora local de Oaxaca, México
+    fecha_local = datetime.now(ZoneInfo("America/Mexico_City"))
+
+    story.append(Paragraph(
+        f"<b>Fecha:</b> {fecha_local.strftime('%d/%m/%Y %H:%M')}",
+        style_center
+    ))
+
+    story.append(Spacer(1, 4 * mm))
+
+ # -------------------------------------------------
+    # TABLA DEL TICKET: DESCRIPCIONES COMPLETAS
+    # -------------------------------------------------
+
+    # Estilo para las descripciones de los productos.
+    # ReportLab permitirá que ocupen varias líneas.
+    style_desc = styles['Normal'].clone('DescripcionProducto')
+    style_desc.fontName = 'Helvetica'
+    style_desc.fontSize = 7
+    style_desc.leading = 8
+    style_desc.spaceBefore = 0
+    style_desc.spaceAfter = 0
+
+    # Estilo para cantidades y precios.
+    style_datos = styles['Normal'].clone('DatosProducto')
+    style_datos.fontName = 'Helvetica'
+    style_datos.fontSize = 7
+    style_datos.leading = 8
+    style_datos.spaceBefore = 0
+    style_datos.spaceAfter = 0
+
+    tabla_datos = [
+        [
+            Paragraph("<b>Cant</b>", style_datos),
+            Paragraph("<b>Descripción</b>", style_datos),
+            Paragraph("<b>P.U.</b>", style_datos),
+            Paragraph("<b>Subt.</b>", style_datos)
+        ]
+    ]
+
     for p in productos:
-        desc = p.get('descripcion', '')
-        if len(desc) > 16:
-            desc = desc[:14] + ".."
+
+        # Obtener la descripción COMPLETA.
+        desc = str(p.get('descripcion') or '')
+
+        # Escapar caracteres especiales para que ReportLab
+        # no interprete el texto como etiquetas HTML.
+        from xml.sax.saxutils import escape
+        desc_segura = escape(desc)
+
+        # Paragraph permite que la descripción ocupe
+        # dos o más líneas dentro de la columna.
+        descripcion_pdf = Paragraph(
+            desc_segura,
+            style_desc
+        )
+
         tabla_datos.append([
-            str(p.get('cantidad', 1)),
-            desc,
-            f"${p.get('precio', 0.0):.2f}",
-            f"${p.get('precio_total_producto', p.get('subtotal', 0.0)):.2f}"
+            Paragraph(
+                str(p.get('cantidad', 1)),
+                style_datos
+            ),
+            descripcion_pdf,
+            Paragraph(
+                f"${float(p.get('precio', 0.0)):.2f}",
+                style_datos
+            ),
+            Paragraph(
+                f"${float(p.get('precio_total_producto', p.get('subtotal', 0.0))):.2f}",
+                style_datos
+            )
         ])
 
-    tabla_datos.append(["", "", "TOTAL:", f"${total:.2f}"])
+    # Total de la venta.
+    tabla_datos.append([
+        "",
+        "",
+        Paragraph("<b>TOTAL:</b>", style_datos),
+        Paragraph(f"<b>${total:.2f}</b>", style_datos)
+    ])
 
-    tabla = Table(tabla_datos, colWidths=[10 * mm, 32 * mm, 16 * mm, 16 * mm])
+    # Conservamos las medidas actuales del ticket.
+    tabla = Table(
+        tabla_datos,
+        colWidths=[
+            10 * mm,
+            32 * mm,
+            16 * mm,
+            16 * mm
+        ],
+        repeatRows=1
+    )
+
     tabla.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 7),
+
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+
         ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
         ('LINEABOVE', (0, -1), (-1, -1), 0.5, colors.black),
+
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+
+        # Espacio pequeño entre productos para facilitar
+        # la lectura de las descripciones multilínea.
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ]))
 
     story.append(tabla)
@@ -1168,23 +1262,23 @@ def productos_mas_vendidos():
     try:
         conn = get_db_connection()
         conn.row_factory = sqlite3.Row
-        
+
         # AQUÍ ESTÁ EL CIERRE QUE FALTA: """,
         query = """
-        SELECT 
-            descripcion, 
+        SELECT
+            descripcion,
             SUM(cantidad) as total_vendido
         FROM venta_detalle
         GROUP BY descripcion
         ORDER BY total_vendido DESC
         LIMIT 10
         """
-        
+
         productos = conn.execute(query).fetchall()
         conn.close()
-        
+
         return render_template("productos_mas_vendidos.html", productos=productos)
-        
+
     except Exception as e:
         print(f"Error en productos_mas_vendidos: {e}")
         return "Error al cargar el reporte", 500
@@ -1195,7 +1289,7 @@ def guardar_producto():
     codigo = request.form.get('codigo')
     descripcion = request.form.get('descripcion')
     precio = request.form.get('precio')
-    
+
     # Manejo de imágenes
     imagenes_nombres = []
     if 'imagenes[]' in request.files:
@@ -1204,7 +1298,7 @@ def guardar_producto():
             if file and file.filename != '':
                 # Usamos secure_filename y la ruta que ya configuramos arriba
                 filename = secure_filename(file.filename)
-                
+
                 # REGLA DE ORO: Usar app.config['UPLOAD_FOLDER']
                 ruta_final = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(ruta_final)
@@ -1223,9 +1317,9 @@ def subir_mas_imagenes():
             filename = secure_filename(file.filename)
             # Guardar en la carpeta correcta
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            
+
             # Lógica para actualizar el string en la base de datos...
-            
+
     return redirect(url_for('admin_productos'))
 @app.route("/admin/logout")
 def admin_logout():
@@ -1260,7 +1354,7 @@ def guardar_config():
             folder_path = os.path.join('static', 'uploads')
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
-            
+
             filename = secure_filename(archivo_logo.filename)
             ruta_completa = os.path.join(folder_path, filename)
             archivo_logo.save(ruta_completa)
@@ -1277,10 +1371,10 @@ def guardar_config():
 
         conn.commit()
         conn.close()
-        
+
         # 4. Mensaje de éxito
         flash(" ¡Configuración actualizada con éxito!", "success")
-        
+
         #  CAMBIO IMPORTANTE: Redirigir a la misma página de configuración
         # para ver los cambios aplicados inmediatamente.
         return redirect(url_for('configuracion_admin'))
@@ -1618,7 +1712,7 @@ def ajustar_inventario(codigo):
 
     conn = get_db_connection()
     producto = conn.execute("SELECT inventario FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
-    
+
     if not producto:
         conn.close()
         return {"ok": False, "error": "Producto no encontrado"}, 404
@@ -1630,7 +1724,7 @@ def ajustar_inventario(codigo):
     conn.execute("UPDATE DATOS_PAPELERIA SET inventario = ? WHERE codigo = ?", (nuevo_inventario, codigo))
     conn.commit()
     conn.close()
-    
+
     return {"ok": True, "nuevo_inventario": nuevo_inventario}
 # -----------------------------
 # CORTE DE CAJA DIARIO
@@ -1831,10 +1925,10 @@ def check_db():
     conn = get_db_connection()
     # Se asegura que el string multilínea esté bien cerrado
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS configuracion 
+        CREATE TABLE IF NOT EXISTS configuracion
         (id INTEGER PRIMARY KEY, nombre_negocio TEXT, mensaje_ticket TEXT)
     ''')
-    
+
     res = conn.execute("SELECT COUNT(*) FROM configuracion").fetchone()
     if res[0] == 0:
         conn.execute("INSERT INTO configuracion (id, nombre_negocio, mensaje_ticket) VALUES (1, 'Papelería', '¡Gracias por su compra!')")
@@ -1933,7 +2027,7 @@ def admin_zonas_entrega():
         nuevo_cp = request.form.get('codigo_postal', '').strip()
         if nuevo_cp and len(nuevo_cp) == 5:
             conn.execute('''
-                INSERT INTO zonas_entrega (codigo_postal, disponible) 
+                INSERT INTO zonas_entrega (codigo_postal, disponible)
                 VALUES (?, 1)
                 ON CONFLICT(codigo_postal) DO UPDATE SET disponible = 1
             ''', (nuevo_cp,))
@@ -1952,8 +2046,8 @@ def cambiar_estado_zona(zona_id):
 
     conn = get_db_connection()
     conn.execute('''
-        UPDATE zonas_entrega 
-        SET disponible = CASE WHEN disponible = 1 THEN 0 ELSE 1 END 
+        UPDATE zonas_entrega
+        SET disponible = CASE WHEN disponible = 1 THEN 0 ELSE 1 END
         WHERE id = ?
     ''', (zona_id,))
     conn.commit()
