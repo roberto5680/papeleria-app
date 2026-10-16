@@ -1,5 +1,3 @@
-
-
 import sys
 import os
 import sqlite3
@@ -35,9 +33,7 @@ from reportlab.lib import colors
 from tkinter import Tk
 from tkinter.filedialog import asksaveasfilename
 from tkinter.filedialog import askopenfilename
-# =========================================================
-#  CONFIGURACIÓN DE RUTAS (UNIFICADA DEV/EXE)
-# =========================================================
+
 # =========================================================
 #  CONFIGURACIÓN DE RUTAS (CORREGIDA PARA .EXE)
 # =========================================================
@@ -48,7 +44,6 @@ def generar_inventario():
     df = pd.read_sql_query("SELECT * FROM DATOS_PAPELERIA", conn)
     conn.close()
 
-    # Oculta ventana Tkinter
     Tk().withdraw()
 
     ruta = asksaveasfilename(
@@ -60,7 +55,7 @@ def generar_inventario():
     if ruta:
         df.to_excel(ruta, index=False)
         try:
-            os.startfile(ruta)  # Abre Excel automáticamente
+            os.startfile(ruta)
         except Exception as e:
             print(f"Error al abrir el archivo: {e}")
         print(f"Inventario guardado en: {ruta}")
@@ -83,7 +78,6 @@ def importar_excel_desktop():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Pregunta al usuario modo de carga
     modo = input("Modo de carga (sumar/reemplazar): ").strip().lower()
     if modo not in ["sumar", "reemplazar"]:
         modo = "sumar"
@@ -128,41 +122,30 @@ def importar_excel_desktop():
     print("Importación completada ")
 
 def obtener_ruta_base():
-    """ Determina la carpeta real donde reside el .exe o el script .py """
     if getattr(sys, 'frozen', False):
-        # Si es un ejecutable, usamos la carpeta donde está el archivo .exe
         return os.path.dirname(sys.executable)
-    # Si es un script .py, usamos la carpeta del archivo
     return os.path.dirname(os.path.abspath(__file__))
 
 def resource_path(relative_path):
-    """ Busca archivos que FUERON EMPAQUETADOS dentro del .exe (Templates) """
     try:
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# 1. Definimos la base
 BASE_DIR = obtener_ruta_base()
 
-# 2. Carpeta de Base de Datos (Fija en C:)
 DB_FOLDER = BASE_DIR
 DB_PATH = os.path.join(BASE_DIR, "C:\\abarrotes_app", "DATOS_PAPELERIA.db")
 
-# 3. Carpetas de Archivos Externos (Deben estar junto al .exe para poder escribir en ellas)
-# IMPORTANTE: Estas NO deben estar dentro de la carpeta temporal _MEIPASS
 PRODUCTOS_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
 TICKETS_FOLDER = os.path.join(BASE_DIR, "tickets_generados")
-
-# 4. Archivo por defecto (Este puede ser interno o externo, mejor externo para evitar errores)
 RUTA_DEFAULT_JPG = os.path.join(BASE_DIR, "static", "productos", "default.jpg")
 
-# 5. Crear directorios físicamente en el disco
-# Usamos PRODUCTOS_FOLDER directamente para asegurar la creación de la ruta completa
 for carpeta in [DB_FOLDER, PRODUCTOS_FOLDER, TICKETS_FOLDER]:
     if not os.path.exists(carpeta):
         os.makedirs(carpeta, exist_ok=True)
+
 def cargar_excel_automatico():
     ruta_excel = os.path.join(BASE_DIR, "inventario.xlsx")
 
@@ -211,7 +194,6 @@ def cargar_excel_automatico():
 
     conn.commit()
     conn.close()
-
     print(" Inventario cargado automáticamente")
 
 # =========================================================
@@ -219,14 +201,10 @@ def cargar_excel_automatico():
 # =========================================================
 
 app = Flask(__name__,
-            # 'static' debe apuntar a la carpeta EXTERNA junto al .exe
             static_folder=os.path.join(BASE_DIR, 'static'),
-            # 'templates' debe apuntar a la carpeta INTERNA (dentro del .exe)
             template_folder=resource_path('templates'))
 
-# Configuramos la ruta de carga para usarla en tus funciones de guardado
 app.config['UPLOAD_FOLDER'] = PRODUCTOS_FOLDER
-
 app.secret_key = "clave_secreta_la_PAPELERIA_2026"
 
 # =========================================================
@@ -235,15 +213,11 @@ app.secret_key = "clave_secreta_la_PAPELERIA_2026"
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-
     return conn
 
 def inicializar_base_de_datos():
     crear_tablas()
     actualizar_tablas()
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
 
 def actualizar_tablas():
     conn = get_db_connection()
@@ -252,6 +226,12 @@ def actualizar_tablas():
     try:
         cursor.execute("ALTER TABLE venta_detalle ADD COLUMN precio_unit REAL")
         print(" Columna precio_unit agregada")
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE DATOS_PAPELERIA ADD COLUMN destacado INTEGER DEFAULT 0")
+        print("Columna 'destacado' agregada correctamente.")
     except Exception:
         pass
 
@@ -268,14 +248,11 @@ def cargar_inventario_inicial():
     archivo_excel = os.path.join(BASE_DIR, "inventario_inicial.xlsx")
 
     if total == 0 and os.path.exists(archivo_excel):
-
         df = pd.read_excel(archivo_excel)
         df.columns = df.columns.str.strip().str.lower()
-
         contador = 0
 
         for _, r in df.iterrows():
-
             codigo = str(r["codigo"])
             descripcion = r["descripcion"]
             inventario = int(r["inventario"])
@@ -286,16 +263,15 @@ def cargar_inventario_inicial():
                 (codigo, descripcion, inventario, precio)
                 VALUES (?, ?, ?, ?)
             """, (codigo, descripcion, inventario, precio))
-
             contador += 1
 
         conn.commit()
         print(f" Inventario inicial cargado. Productos: {contador}")
-
     else:
         print(" No se cargó inventario inicial.")
 
     conn.close()
+
 def crear_respaldo_db():
     db_path = DB_PATH
     carpeta_respaldos = os.path.join(BASE_DIR, "respaldos")
@@ -313,7 +289,6 @@ def crear_tablas():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Tabla de Productos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS DATOS_PAPELERIA (
             codigo TEXT PRIMARY KEY,
@@ -324,7 +299,6 @@ def crear_tablas():
         )
     """)
 
-    # Configuración
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS configuracion (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -341,7 +315,6 @@ def crear_tablas():
         VALUES (1, 'Mi Papelería')
     """)
 
-    # Usuarios
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ADMIN_USUARIOS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -355,7 +328,6 @@ def crear_tablas():
         VALUES ('admin', '13579rhv')
     """)
 
-    # Ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS VENTAS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -365,7 +337,6 @@ def crear_tablas():
         )
     """)
 
-    # Detalle ventas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS venta_detalle (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -378,7 +349,6 @@ def crear_tablas():
         )
     """)
 
-    # Cortes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cortes_caja (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -388,7 +358,6 @@ def crear_tablas():
         )
     """)
 
-    # Historial
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS HISTORIAL_RECARGAS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -400,30 +369,28 @@ def crear_tablas():
         )
     """)
 
-    #  VALIDAR SI EXISTE LA COLUMNA 'destacado'
-    def columna_existe(conn, tabla, columna):
-        cursor = conn.execute(f"PRAGMA table_info({tabla})")
-        columnas = [row[1] for row in cursor.fetchall()]
-        return columna in columnas
-
-
     conn.commit()
     conn.close()
 
-
-# Llamar a inicialización al cargar el script
 inicializar_base_de_datos()
 
+# =========================================================
+#  DECORADORES Y APOYO
+# =========================================================
 
-# =========================================================
-#  FUNCIONES DE APOYO
-# =========================================================
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("admin_logueado"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def zona_requerida(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("zona"):
-            flash("Por favor, selecciona una zona de entrega para continuar.", "warning")
+            flash("Selecciona una zona", "warning")
             return redirect(url_for("zona"))
         return f(*args, **kwargs)
     return decorated_function
@@ -477,76 +444,43 @@ def limpiar_fotos_huerfanas():
                 pass
     return borrados
 
-# A partir de aquí siguen tus @app.route...
-# =========================================================
-#  DECORADORES
-# =========================================================
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get("admin_logueado"):
-            return redirect(url_for("admin_login"))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def zona_requerida(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get("zona"):
-            flash("Selecciona una zona", "warning")
-            return redirect(url_for("zona"))
-        return f(*args, **kwargs)
-    return decorated_function
 @app.context_processor
 def inject_config():
     try:
         conn = get_db_connection()
-        #  ESTA LÍNEA ES CLAVE: Convierte la fila en algo que el HTML entiende por nombre
         conn.row_factory = sqlite3.Row
-
         config = conn.execute("SELECT * FROM configuracion WHERE id = 1").fetchone()
         conn.close()
 
-        # Si config existe, lo pasamos tal cual; si no, un diccionario con valores por defecto
         if config:
             return {'config': config}
         else:
             return {'config': {'nombre_negocio': 'papeleria', 'logo': 'logo.png'}}
-
     except Exception as e:
         print(f"Error en inject_config: {e}")
         return {'config': {}}
 
 # =========================================================
-#  INICIO
+#  RUTAS DE LA TIENDA
 # =========================================================
-from flask import send_file
-import os
-import pandas as pd
 
 @app.route('/subir_imagen', methods=['POST'])
 def subir_imagen():
     codigos = request.form.getlist('codigo_imagen[]')
     files = request.files.getlist('imagenes[]')
-
     conn = get_db_connection()
 
     for i, file in enumerate(files):
         if file and file.filename != '':
             filename = secure_filename(file.filename)
-            # Guardamos en la ruta del EXE (static/uploads)
             ruta_destino = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(ruta_destino)
 
             if i < len(codigos):
                 codigo_p = codigos[i]
-
-                # Buscamos qué fotos ya tiene el producto para NO borrarlas
                 prod = conn.execute("SELECT imagen FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo_p,)).fetchone()
 
                 if prod and prod['imagen']:
-                    # Si ya tiene fotos, sumamos la nueva con una coma
                     nuevas_fotos = f"{prod['imagen']},{filename}"
                 else:
                     nuevas_fotos = filename
@@ -560,50 +494,36 @@ def subir_imagen():
 @app.route("/")
 def index():
     conn = get_db_connection()
-
-    tablas = conn.execute("PRAGMA table_info(DATOS_PAPELERIA)").fetchall()
-
-
-    conn = get_db_connection()
-
     productos = conn.execute("""
-    SELECT codigo, descripcion, precio
-    FROM DATOS_PAPELERIA
-    WHERE destacado = 1
-    LIMIT 6
+        SELECT codigo, descripcion, precio
+        FROM DATOS_PAPELERIA
+        WHERE destacado = 1
+        LIMIT 6
     """).fetchall()
-
-    # AGREGAR ESTO
     config = conn.execute("SELECT * FROM configuracion WHERE id=1").fetchone()
-
     conn.close()
 
     return render_template("index.html", productos=productos, config=config)
 
-
 @app.route("/zona", methods=["GET", "POST"])
 def zona():
-
-    #  LIMPIAR SIEMPRE LA ZONA
     session.pop("zona", None)
-
     conn = get_db_connection()
     config = conn.execute("SELECT * FROM configuracion WHERE id = 1").fetchone()
     conn.close()
 
-    #  LISTA LIMPIA DE ZONAS
     zonas = [z.strip() for z in config['zonas'].split(',')] if config and config['zonas'] else []
-
-    #print("ZONAS CARGADAS:", zonas)
 
     if request.method == "POST":
         session["zona"] = request.form.get("zona")
         return redirect(url_for("catalogo"))
     return render_template("zona.html", zonas=zonas)
+
 @app.route("/catalogo")
 def catalogo():
     zona = session.get("zona")
-    if not zona: return redirect(url_for("zona"))
+    if not zona: 
+        return redirect(url_for("zona"))
 
     conn = get_db_connection()
     productos = [dict(row) for row in conn.execute("SELECT * FROM DATOS_PAPELERIA").fetchall()]
@@ -611,15 +531,13 @@ def catalogo():
 
     for p in productos:
         if p.get('imagen'):
-            # Convertimos el texto "foto1.jpg,foto2.jpg" en una LISTA real
             lista_fotos = [f.strip() for f in p['imagen'].split(',') if f.strip()]
-            # Creamos las rutas completas para cada foto
             p['fotos_lista'] = [f"uploads/{f}" for f in lista_fotos]
         else:
-            # Si no hay nada, lista con la imagen por defecto
             p['fotos_lista'] = ["productos/default.jpg"]
 
     return render_template("catalogo.html", productos=productos)
+
 @app.route("/buscar_rapido")
 def buscar_rapido():
     q = request.args.get("q", "").lower()
@@ -629,9 +547,9 @@ def buscar_rapido():
     productos = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify([{"codigo": p["codigo"], "descripcion": p["descripcion"], "precio": f"{p['precio']:.2f}"} for p in productos])
+
 @app.route('/agregar/<codigo>')
 def agregar(codigo):
-    # 1. Conectamos a la base de datos para revisar el inventario
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT inventario, descripcion FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,))
@@ -639,11 +557,9 @@ def agregar(codigo):
     conn.close()
 
     if producto:
-        # 2. REGLA DE ORO: Si no hay stock, no dejamos agregar
         if producto['inventario'] <= 0:
             return jsonify(ok=False, mensaje=f"Sin existencias de {producto['descripcion']}")
 
-        # 3. Si hay stock, procedemos con tu lógica original del carrito
         carrito = session.get('carrito', {})
         carrito[codigo] = carrito.get(codigo, 0) + 1
         session['carrito'] = carrito
@@ -652,40 +568,28 @@ def agregar(codigo):
 
     return jsonify(ok=False, mensaje="Producto no encontrado")
 
-# =========================================================
-# 🛒 CARRITO
-# =========================================================
 @app.route('/cambiar_cantidad/<codigo>/<cambio>')
 def cambiar_cantidad(codigo, cambio):
     carrito = session.get('carrito', {})
 
     try:
         cambio = int(cambio)
-
         if codigo in carrito:
-
             nueva_cantidad = carrito[codigo] + cambio
 
-            #  SOLO VALIDAMOS SI VA A AUMENTAR
             if cambio > 0:
                 conn = get_db_connection()
                 cursor = conn.cursor()
-
                 cursor.execute("SELECT inventario FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,))
                 producto = cursor.fetchone()
-
                 conn.close()
 
                 if not producto:
                     return jsonify(ok=False, error="Producto no encontrado")
 
-                inventario_disponible = producto['inventario']
-
-                #  VALIDACIÓN CLAVE
-                if nueva_cantidad > inventario_disponible:
+                if nueva_cantidad > producto['inventario']:
                     return jsonify(ok=False, error="Sin inventario suficiente")
 
-            #  SI PASA VALIDACIÓN
             if nueva_cantidad <= 0:
                 del carrito[codigo]
             else:
@@ -693,19 +597,18 @@ def cambiar_cantidad(codigo, cambio):
 
         session['carrito'] = carrito
         session.modified = True
-
         return jsonify(ok=True)
-
     except Exception as e:
         return jsonify(ok=False, error=str(e)), 400
+
 @app.route('/vaciar_carrito')
 def vaciar_carrito():
     session['carrito'] = {}
     session.modified = True
     return jsonify(ok=True)
+
 @app.route('/carrito')
 def ver_carrito():
-    # Es vital que diga 'return' al principio
     return mostrar_resumen_carrito('carrito.html')
 
 @app.route('/api/validar-cp', methods=['GET'])
@@ -725,18 +628,22 @@ def validar_cp():
 
     return jsonify({'valido': False, 'mensaje': '❌ Lo sentimos, aún no realizamos entregas en esta zona.'})
 
-
 @app.route('/confirmar_venta', methods=["GET", "POST"])
 def confirmar_venta():
+    # 🛑 VALIDACIÓN DE COMPRA MÍNIMA DE $100.00
+    resumen = obtener_datos_carrito()
+    total_venta = resumen['total']
+    MONTO_MINIMO = 100.00
+
+    if total_venta < MONTO_MINIMO:
+        flash(f"Su compra tiene que ser mínimo de $100.00. Su total actual es de ${total_venta:.2f}", "warning")
+        return redirect(url_for('ver_carrito'))
 
     if request.method == "POST":
         cp_raw = request.form.get('codigo_postal', '').strip()
-
-        # Extraer únicamente la secuencia de 5 dígitos numéricos (ej. '70461' de 'macuil centro 70461')
         match = re.search(r'\d{5}', cp_raw)
         cp_cliente = match.group(0) if match else cp_raw
 
-        # 1. Validación en el Servidor (Flask)
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT disponible FROM zonas_entrega WHERE TRIM(codigo_postal) = ?', (cp_cliente,))
@@ -748,20 +655,16 @@ def confirmar_venta():
             es_valido = bool(resultado['disponible'] if isinstance(resultado, dict) or hasattr(resultado, 'keys') else resultado[0])
 
         if not es_valido:
-            # Si el CP no es válido o no tiene cobertura, recargamos la página con la advertencia
             return mostrar_resumen_carrito('confirmar_venta.html', error_cp="No realizamos entregas en el código postal ingresado.")
 
-        # 2. Guardar datos del cliente en la sesión
         session['nombre_cliente'] = request.form.get('nombre')
         session['telefono_cliente'] = request.form.get('telefono')
         session['direccion_cliente'] = request.form.get('direccion')
         session['codigo_postal_cliente'] = cp_cliente
         session['referencias_cliente'] = request.form.get('referencias')
 
-        # 3. Redirigir a venta_exitosa
         return redirect(url_for('venta_exitosa'))
 
-    # Si alguien entra por GET, mostrar el resumen
     return mostrar_resumen_carrito('confirmar_venta.html')
 
 @app.route("/acerca")
@@ -770,30 +673,23 @@ def acerca():
 
 @app.route('/venta_exitosa')
 def venta_exitosa():
-    from urllib.parse import quote
-    import os
-    import uuid
-    from datetime import datetime
-
     resumen = obtener_datos_carrito()
     total_venta = resumen['total']
     productos = resumen['productos']
+    
     if not productos:
         flash("No hay productos en la compra", "warning")
         return redirect(url_for("catalogo"))
-    # Generamos un ID único para el pedido
+
     id_pedido = str(uuid.uuid4())[:6].upper()
 
-    # Crear lista de productos para WhatsApp
     lista_texto = ""
     for p in productos:
         lista_texto += f"- {p['cantidad']}x {p['descripcion']} (${p['precio_total_producto']:.2f})\n"
 
-    # Guardar venta y descontar inventario en la base de datos
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Guardamos la venta
     fecha_iso = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute(
         "INSERT INTO VENTAS (fecha, total) VALUES (?, ?)",
@@ -801,7 +697,6 @@ def venta_exitosa():
     )
     venta_id_generada = cursor.lastrowid
 
-    # Guardamos detalle y actualizamos inventario
     for p in productos:
         cursor.execute("""
             INSERT INTO venta_detalle
@@ -823,24 +718,15 @@ def venta_exitosa():
 
     conn.commit()
     conn.close()
- # -----------------------------
-    # GENERAR PDF DEL TICKET
-    # -----------------------------
+
     pdf_filename = generar_ticket_pdf(id_pedido, productos, total_venta)
 
-
-    # -----------------------------
-    # DATOS DEL CLIENTE
-    # -----------------------------
     nombre = session.get('nombre_cliente') or 'No especificado'
     telefono = session.get('telefono_cliente') or 'No especificado'
     direccion = session.get('direccion_cliente') or 'No especificado'
     codigo_postal = session.get('codigo_postal_cliente') or 'No especificado'
     referencias = session.get('referencias_cliente') or 'Sin referencias'
 
-    # -----------------------------
-    # MENSAJE PARA WHATSAPP
-    # -----------------------------
     mensaje_completo = (
         f" *NUEVO PEDIDO: #{id_pedido}*\n\n"
         f" *Cliente:* {nombre}\n"
@@ -855,10 +741,9 @@ def venta_exitosa():
 
     whatsapp_url = f"https://wa.me/529513928223?text={quote(mensaje_completo)}"
 
-    # Limpiamos carrito
     session.pop('carrito', None)
     session.pop('zona', None)
-    # MOSTRAR VENTA EXITOSA
+
     return render_template(
         'venta_exitosa.html',
         id_pedido=id_pedido,
@@ -866,16 +751,14 @@ def venta_exitosa():
         pdf_filename=pdf_filename,
         whatsapp_url=whatsapp_url
     )
+
 @app.route('/nuevo_cliente')
 def nuevo_cliente():
-    # Borramos la zona y el carrito para que el "candado" se cierre
     session.pop('carrito', None)
     session.pop('zona', None)
     session.pop('nombre_cliente', None)
-
-    # Al redireccionar a 'index', el decorador @zona_requerida
-    # detectará que no hay zona y lo mandará directo a elegir una.
     return redirect(url_for("index"))
+
 def obtener_datos_carrito():
     carrito = session.get('carrito', {})
     productos_en_carrito = []
@@ -886,7 +769,6 @@ def obtener_datos_carrito():
         row = conn.execute("SELECT codigo, descripcion, precio FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
         if row:
             p = dict(row)
-            # Limpiar precio por si tiene símbolos
             precio_val = float(str(p["precio"]).replace("$", "").replace(",", "").strip())
             item_total = precio_val * cantidad
             total += item_total
@@ -899,6 +781,7 @@ def obtener_datos_carrito():
             })
     conn.close()
     return {"productos": productos_en_carrito, "total": total}
+
 def mostrar_resumen_carrito(template_name, **kwargs):
     conn = get_db_connection()
     config = conn.execute("SELECT * FROM configuracion LIMIT 1").fetchone()
@@ -909,10 +792,8 @@ def mostrar_resumen_carrito(template_name, **kwargs):
 
     if carrito_session:
         claves = [str(k) for k in carrito_session.keys() if str(k).strip()]
-
         if claves:
             placeholders = ",".join(["?"] * len(claves))
-
             try:
                 items = conn.execute(f"SELECT * FROM DATOS_PAPELERIA WHERE codigo IN ({placeholders})", claves).fetchall()
             except Exception:
@@ -920,7 +801,6 @@ def mostrar_resumen_carrito(template_name, **kwargs):
 
             for item in items:
                 keys = item.keys() if hasattr(item, 'keys') else []
-
                 prod_id = item["id"] if "id" in keys else (item["codigo"] if "codigo" in keys else item[0])
                 prod_codigo = item["codigo"] if "codigo" in keys else str(prod_id)
                 prod_desc = item["descripcion"] if "descripcion" in keys else ""
@@ -939,11 +819,10 @@ def mostrar_resumen_carrito(template_name, **kwargs):
                         "precio": prod_precio,
                         "cantidad": cantidad,
                         "subtotal": subtotal,
-                        "precio_total_producto": subtotal  # 🔥 Clave que requiere confirmar_venta.html
+                        "precio_total_producto": subtotal
                     })
 
     conn.close()
-
     return render_template(
         template_name,
         productos=productos,
@@ -951,9 +830,10 @@ def mostrar_resumen_carrito(template_name, **kwargs):
         config=config,
         **kwargs
     )
-# -----------------------------
-# GENERAR TICKET PDF
-# -----------------------------
+
+# =========================================================
+#  GENERAR TICKET PDF (CON NÚMERO DE TICKET)
+# =========================================================
 def generar_ticket_pdf(id_pedido, productos, total):
     if not productos:
         return None
@@ -998,11 +878,14 @@ def generar_ticket_pdf(id_pedido, productos, total):
         story.append(Paragraph(direccion, style_center))
     if telefono:
         story.append(Paragraph(f"Tel: {telefono}", style_center))
-    story.append(Spacer(1, 4 * mm))
+    
+    # ─── NÚMERO DE TICKET INTEGRADO ───
+    story.append(Spacer(1, 2 * mm))
+    story.append(Paragraph(f"<b>Ticket No:</b> {id_pedido}", style_center))
+    story.append(Spacer(1, 2 * mm))
+    # ───────────────────────────────────
 
-    # Fecha y hora local de Oaxaca, México
     fecha_local = datetime.now(ZoneInfo("America/Mexico_City"))
-
     story.append(Paragraph(
         f"<b>Fecha:</b> {fecha_local.strftime('%d/%m/%Y %H:%M')}",
         style_center
@@ -1010,26 +893,15 @@ def generar_ticket_pdf(id_pedido, productos, total):
 
     story.append(Spacer(1, 4 * mm))
 
- # -------------------------------------------------
-    # TABLA DEL TICKET: DESCRIPCIONES COMPLETAS
-    # -------------------------------------------------
-
-    # Estilo para las descripciones de los productos.
-    # ReportLab permitirá que ocupen varias líneas.
     style_desc = styles['Normal'].clone('DescripcionProducto')
     style_desc.fontName = 'Helvetica'
     style_desc.fontSize = 7
     style_desc.leading = 8
-    style_desc.spaceBefore = 0
-    style_desc.spaceAfter = 0
 
-    # Estilo para cantidades y precios.
     style_datos = styles['Normal'].clone('DatosProducto')
     style_datos.fontName = 'Helvetica'
     style_datos.fontSize = 7
     style_datos.leading = 8
-    style_datos.spaceBefore = 0
-    style_datos.spaceAfter = 0
 
     tabla_datos = [
         [
@@ -1041,39 +913,19 @@ def generar_ticket_pdf(id_pedido, productos, total):
     ]
 
     for p in productos:
-
-        # Obtener la descripción COMPLETA.
         desc = str(p.get('descripcion') or '')
-
-        # Escapar caracteres especiales para que ReportLab
-        # no interprete el texto como etiquetas HTML.
         from xml.sax.saxutils import escape
         desc_segura = escape(desc)
 
-        # Paragraph permite que la descripción ocupe
-        # dos o más líneas dentro de la columna.
-        descripcion_pdf = Paragraph(
-            desc_segura,
-            style_desc
-        )
+        descripcion_pdf = Paragraph(desc_segura, style_desc)
 
         tabla_datos.append([
-            Paragraph(
-                str(p.get('cantidad', 1)),
-                style_datos
-            ),
+            Paragraph(str(p.get('cantidad', 1)), style_datos),
             descripcion_pdf,
-            Paragraph(
-                f"${float(p.get('precio', 0.0)):.2f}",
-                style_datos
-            ),
-            Paragraph(
-                f"${float(p.get('precio_total_producto', p.get('subtotal', 0.0))):.2f}",
-                style_datos
-            )
+            Paragraph(f"${float(p.get('precio', 0.0)):.2f}", style_datos),
+            Paragraph(f"${float(p.get('precio_total_producto', p.get('subtotal', 0.0))):.2f}", style_datos)
         ])
 
-    # Total de la venta.
     tabla_datos.append([
         "",
         "",
@@ -1081,37 +933,23 @@ def generar_ticket_pdf(id_pedido, productos, total):
         Paragraph(f"<b>${total:.2f}</b>", style_datos)
     ])
 
-    # Conservamos las medidas actuales del ticket.
     tabla = Table(
         tabla_datos,
-        colWidths=[
-            10 * mm,
-            32 * mm,
-            16 * mm,
-            16 * mm
-        ],
+        colWidths=[10 * mm, 32 * mm, 16 * mm, 16 * mm],
         repeatRows=1
     )
 
     tabla.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 7),
-
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
-
         ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.black),
         ('LINEABOVE', (0, -1), (-1, -1), 0.5, colors.black),
-
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-
-        # Espacio pequeño entre productos para facilitar
-        # la lectura de las descripciones multilínea.
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ]))
@@ -1126,37 +964,23 @@ def generar_ticket_pdf(id_pedido, productos, total):
     except Exception as e:
         print(f"Error generando PDF: {e}")
         return None
+
 @app.route('/ver_ticket/<path:filename>')
 def ver_ticket(filename):
-    import os
     nombre_limpio = os.path.basename(filename)
-
-    return send_from_directory(
-        TICKETS_FOLDER,
-        nombre_limpio
-    )
+    return send_from_directory(TICKETS_FOLDER, nombre_limpio)
 
 @app.route('/descargar_ticket/<path:filename>')
 def descargar_ticket(filename):
-    import os
     nombre_limpio = os.path.basename(filename)
-
     if not nombre_limpio.lower().endswith('.pdf'):
         return "Archivo no válido", 400
-
-    return send_from_directory(
-        TICKETS_FOLDER,
-        nombre_limpio,
-        as_attachment=True
-    )
-
-from flask import request, redirect, url_for, flash, render_template
-from werkzeug.utils import secure_filename
-import os
+    return send_from_directory(TICKETS_FOLDER, nombre_limpio, as_attachment=True)
 
 CONFIG_FOLDER = os.path.join('static', 'config')
 if not os.path.exists(CONFIG_FOLDER):
     os.makedirs(CONFIG_FOLDER)
+
 @app.route('/admin/configuracion', methods=["GET", "POST"])
 @login_required
 def configuracion_admin():
@@ -1164,10 +988,6 @@ def configuracion_admin():
     cursor = conn.cursor()
 
     if request.method == "POST":
-
-        # -------------------------
-        # DATOS GENERALES
-        # -------------------------
         nombre = request.form.get("nombre_negocio")
         direccion = request.form.get("direccion")
         telefono = request.form.get("telefono")
@@ -1179,57 +999,35 @@ def configuracion_admin():
             WHERE id=1
         """, (nombre, direccion, telefono, mensaje))
 
-
-        # -------------------------
-        # LOGO
-        # -------------------------
         logo = request.files.get("logo")
         if logo and logo.filename != "":
             nombre_logo = secure_filename(logo.filename)
             ruta_logo = os.path.join(CONFIG_FOLDER, nombre_logo)
             logo.save(ruta_logo)
-
             cursor.execute("UPDATE configuracion SET logo=? WHERE id=1", (nombre_logo,))
 
-
-        # -------------------------
-        # BANNER
-        # -------------------------
         banner = request.files.get("banner")
         if banner and banner.filename != "":
             nombre_banner = secure_filename(banner.filename)
             ruta_banner = os.path.join(CONFIG_FOLDER, nombre_banner)
             banner.save(ruta_banner)
-
             cursor.execute("UPDATE configuracion SET banner=? WHERE id=1", (nombre_banner,))
 
-
-        # -------------------------
-        # FONDO
-        # -------------------------
         fondo = request.files.get("fondo")
         if fondo and fondo.filename != "":
             nombre_fondo = secure_filename(fondo.filename)
             ruta_fondo = os.path.join(CONFIG_FOLDER, nombre_fondo)
             fondo.save(ruta_fondo)
-
             cursor.execute("UPDATE configuracion SET fondo=? WHERE id=1", (nombre_fondo,))
-
 
         conn.commit()
         conn.close()
-
         flash(" Configuración actualizada correctamente", "success")
         return redirect(url_for("configuracion_admin"))
 
-    # -------------------------
-    # GET: CARGAR DATOS
-    # -------------------------
     config = cursor.execute("SELECT * FROM configuracion WHERE id = 1").fetchone()
     conn.close()
-
     return render_template("configuracion.html", config=config)
-
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -1252,18 +1050,13 @@ def admin_login():
             flash("Error de acceso")
 
     return render_template("admin_login.html")
-# -----------------------------
-# RUTA   ADMIN
-# ----------------------------
-# Esta es una función totalmente aparte
+
 @app.route("/admin/productos_mas_vendidos")
 @login_required
 def productos_mas_vendidos():
     try:
         conn = get_db_connection()
         conn.row_factory = sqlite3.Row
-
-        # AQUÍ ESTÁ EL CIERRE QUE FALTA: """,
         query = """
         SELECT
             descripcion,
@@ -1273,66 +1066,32 @@ def productos_mas_vendidos():
         ORDER BY total_vendido DESC
         LIMIT 10
         """
-
         productos = conn.execute(query).fetchall()
         conn.close()
-
         return render_template("productos_mas_vendidos.html", productos=productos)
-
     except Exception as e:
         print(f"Error en productos_mas_vendidos: {e}")
         return "Error al cargar el reporte", 500
 
-# ASEGÚRATE DE QUE ESTO SEA LO ÚLTIMO QUE APARECE SI TU ARCHIVO TERMINA AQUÍ
 @app.route('/admin/guardar_producto', methods=['POST'])
 def guardar_producto():
-    codigo = request.form.get('codigo')
-    descripcion = request.form.get('descripcion')
-    precio = request.form.get('precio')
-
-    # Manejo de imágenes
-    imagenes_nombres = []
-    if 'imagenes[]' in request.files:
-        files = request.files.getlist('imagenes[]')
-        for file in files:
-            if file and file.filename != '':
-                # Usamos secure_filename y la ruta que ya configuramos arriba
-                filename = secure_filename(file.filename)
-
-                # REGLA DE ORO: Usar app.config['UPLOAD_FOLDER']
-                ruta_final = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(ruta_final)
-                imagenes_nombres.append(filename)
-
-    # Aquí iría tu lógica de SQL para insertar en la DB...
-    # imagen_db = ",".join(imagenes_nombres)
     return redirect(url_for('admin_productos'))
+
 @app.route('/admin/subir_mas_imagenes', methods=['POST'])
 def subir_mas_imagenes():
-    codigos = request.form.getlist('codigo_imagen[]')
-    files_list = request.files.getlist('imagenes[]')
-
-    for i, file in enumerate(files_list):
-        if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            # Guardar en la carpeta correcta
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-            # Lógica para actualizar el string en la base de datos...
-
     return redirect(url_for('admin_productos'))
+
 @app.route("/admin/logout")
 def admin_logout():
     session.pop("admin_logueado", None)
     session.pop("admin_usuario", None)
     return redirect(url_for("admin_login"))
-@app.route('/guardar_config', methods=['POST'])
+
 @app.route('/guardar_config', methods=['POST'])
 def guardar_config():
     if not session.get('admin_logueado'):
         return redirect('/admin/login')
 
-    # Obtenemos los datos del formulario
     nombre = request.form.get('nombre')
     direccion = request.form.get('direccion')
     telefono = request.form.get('telefono')
@@ -1341,15 +1100,12 @@ def guardar_config():
 
     try:
         conn = get_db_connection()
-        # Aseguramos que la conexión use Row para poder leer config['logo']
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # 1. Obtener el logo actual por si no se sube uno nuevo
         config_actual = cursor.execute("SELECT logo FROM configuracion WHERE id = 1").fetchone()
         nombre_logo = config_actual['logo'] if config_actual else 'logo.png'
 
-        # 2. Manejo del nuevo logo (si el usuario subió uno)
         if archivo_logo and archivo_logo.filename != '':
             folder_path = os.path.join('static', 'uploads')
             if not os.path.exists(folder_path):
@@ -1358,11 +1114,8 @@ def guardar_config():
             filename = secure_filename(archivo_logo.filename)
             ruta_completa = os.path.join(folder_path, filename)
             archivo_logo.save(ruta_completa)
-
-            # Guardamos la ruta que usará el HTML
             nombre_logo = f"uploads/{filename}"
 
-        # 3. Actualizar la base de datos
         cursor.execute("""
             UPDATE configuracion
             SET nombre_negocio = ?, direccion = ?, telefono = ?, logo = ?, zonas = ?
@@ -1371,18 +1124,13 @@ def guardar_config():
 
         conn.commit()
         conn.close()
-
-        # 4. Mensaje de éxito
         flash(" ¡Configuración actualizada con éxito!", "success")
-
-        #  CAMBIO IMPORTANTE: Redirigir a la misma página de configuración
-        # para ver los cambios aplicados inmediatamente.
         return redirect(url_for('configuracion_admin'))
-
     except Exception as e:
         print(f" Error al guardar configuración: {e}")
         flash(f"Error al guardar: {e}", "error")
         return redirect(url_for('configuracion_admin'))
+
 @app.route("/admin")
 @login_required
 def admin_dashboard():
@@ -1427,7 +1175,6 @@ def admin_dashboard():
         "SELECT SUM(total) as total FROM ventas"
     ).fetchone()["total"] or 0
 
-    #   ESTA LÍNEA FALTABA
     config = conn.execute(
         "SELECT * FROM configuracion WHERE id = 1"
     ).fetchone()
@@ -1443,21 +1190,8 @@ def admin_dashboard():
         bajo_stock=bajo_stock,
         mas_vendidos=mas_vendidos,
         total_ingresos=total_ingresos,
-        config=config  #   IMPORTANTE
+        config=config
     )
-
-
-
-
-
-
-# -----------------------------
-# EXPORTAR / IMPORTAR EXCEL
-# -----------------------------
-import io
-from flask import send_file
-
-#  IMPORTAR EXCEL (solo UNA vez)
 
 @app.route("/admin/importar_excel", methods=["POST"])
 @login_required
@@ -1483,7 +1217,6 @@ def importar_excel():
             return redirect(url_for("admin_productos"))
 
         productos = {}
-
         for _, r in df.iterrows():
             if pd.isna(r["codigo"]) or pd.isna(r["inventario"]):
                 continue
@@ -1505,51 +1238,33 @@ def importar_excel():
             productos[codigo] = (descripcion, precio, cantidad)
 
         if not productos:
-            flash("El Excel no contiene artículos válidos. No se modificó el inventario.", "warning")
+            flash("El Excel no contiene artículos válidos.", "warning")
             return redirect(url_for("admin_productos"))
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
         try:
-            # En modo reemplazar, quitar del catálogo
-            # los artículos que no aparecen en el Excel.
             if modo == "reemplazar":
-                actuales = cursor.execute(
-                    "SELECT codigo FROM DATOS_PAPELERIA"
-                ).fetchall()
-
+                actuales = cursor.execute("SELECT codigo FROM DATOS_PAPELERIA").fetchall()
                 codigos_excel = set(productos.keys())
-
                 for fila in actuales:
                     if fila["codigo"] not in codigos_excel:
-                        cursor.execute(
-                            "DELETE FROM DATOS_PAPELERIA WHERE codigo = ?",
-                            (fila["codigo"],)
-                        )
+                        cursor.execute("DELETE FROM DATOS_PAPELERIA WHERE codigo = ?", (fila["codigo"],))
 
-            # Insertar o actualizar los artículos del Excel.
             for codigo, (descripcion, precio, cantidad) in productos.items():
-                existe = cursor.execute(
-                    "SELECT codigo FROM DATOS_PAPELERIA WHERE codigo = ?",
-                    (codigo,)
-                ).fetchone()
-
+                existe = cursor.execute("SELECT codigo FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
                 if existe:
                     if modo == "sumar":
                         cursor.execute("""
                             UPDATE DATOS_PAPELERIA
-                            SET inventario = inventario + ?,
-                                precio = ?,
-                                descripcion = ?
+                            SET inventario = inventario + ?, precio = ?, descripcion = ?
                             WHERE codigo = ?
                         """, (cantidad, precio, descripcion, codigo))
                     else:
                         cursor.execute("""
                             UPDATE DATOS_PAPELERIA
-                            SET inventario = ?,
-                                precio = ?,
-                                descripcion = ?
+                            SET inventario = ?, precio = ?, descripcion = ?
                             WHERE codigo = ?
                         """, (cantidad, precio, descripcion, codigo))
                 else:
@@ -1560,59 +1275,34 @@ def importar_excel():
                     """, (codigo, descripcion, cantidad, precio, "default.jpg"))
 
             conn.commit()
-
         except Exception:
             conn.rollback()
             raise
         finally:
             conn.close()
 
-        flash("Inventario reemplazado correctamente." if modo == "reemplazar"
-              else "Importación completada correctamente.", "success")
-
+        flash("Importación completada correctamente.", "success")
     except Exception as e:
         flash(f"Error al importar el Excel: {e}", "danger")
 
     return redirect(url_for("admin_productos"))
 
-#  EXPORTAR EXCEL (LO QUE TE FALTABA)
-import os
-import sys
-from flask import send_file
-
 @app.route("/admin/exportar_excel")
 @login_required
 def exportar_excel():
     conn = get_db_connection()
-
-    df = pd.read_sql_query(
-        "SELECT codigo, descripcion, inventario, precio FROM DATOS_PAPELERIA",
-        conn
-    )
-
+    df = pd.read_sql_query("SELECT codigo, descripcion, inventario, precio FROM DATOS_PAPELERIA", conn)
     conn.close()
 
-    #  Detectar entorno (normal o .exe)
     if getattr(sys, 'frozen', False):
         base_dir = os.path.dirname(sys.executable)
     else:
         base_dir = os.path.dirname(os.path.abspath(__file__))
 
     ruta_archivo = os.path.join(base_dir, "inventario.xlsx")
-
-    # Guardar archivo físico
     df.to_excel(ruta_archivo, index=False)
-
-    # Enviar archivo
     return send_file(ruta_archivo, as_attachment=True)
 
-from flask import Flask, render_template, request, redirect, url_for, flash
-from werkzeug.utils import secure_filename
-import os
-from functools import wraps
-
-# Carpeta donde se guardarán las imágenes
-UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
 @app.route("/admin/productos", methods=["GET", "POST"])
 @login_required
 def admin_productos():
@@ -1621,75 +1311,44 @@ def admin_productos():
     if request.method == "POST":
         codigos = request.form.getlist("codigos_productos[]")
 
-        #  1. INVENTARIO + DESTACADOS
         for codigo in codigos:
             cantidad = request.form.get(f"inv_{codigo}", type=float)
             tipo = request.form.get(f"tipo_{codigo}")
 
-            # INVENTARIO
             if cantidad and tipo:
                 if tipo == "compra":
-                    conn.execute(
-                        "UPDATE DATOS_PAPELERIA SET inventario = inventario + ? WHERE codigo=?",
-                        (cantidad, codigo)
-                    )
+                    conn.execute("UPDATE DATOS_PAPELERIA SET inventario = inventario + ? WHERE codigo=?", (cantidad, codigo))
                 elif tipo == "salida":
-                    conn.execute(
-                        "UPDATE DATOS_PAPELERIA SET inventario = inventario - ? WHERE codigo=?",
-                        (cantidad, codigo)
-                    )
+                    conn.execute("UPDATE DATOS_PAPELERIA SET inventario = inventario - ? WHERE codigo=?", (cantidad, codigo))
 
-            #  DESTACADO (AQUÍ VA BIEN)
             destacado = 1 if request.form.get(f"destacado_{codigo}") else 0
-
-            conn.execute("""
-                UPDATE DATOS_PAPELERIA
-                SET destacado = ?
-                WHERE codigo = ?
-            """, (destacado, codigo))
+            conn.execute("UPDATE DATOS_PAPELERIA SET destacado = ? WHERE codigo = ?", (destacado, codigo))
 
         conn.commit()
 
-        #  2. IMÁGENES
         codigos_img = request.form.getlist("codigo_imagen[]")
-
         for codigo in codigos_img:
             archivos = request.files.getlist(f"imagenes_{codigo}[]")
-
             for archivo in archivos:
                 if archivo and archivo.filename != "":
                     nombre_seguro = secure_filename(archivo.filename)
-
                     ruta_guardar = os.path.join(PRODUCTOS_FOLDER, nombre_seguro)
-
-                    print("Guardando imagen en:", ruta_guardar)
-
                     archivo.save(ruta_guardar)
 
-                    producto = conn.execute(
-                        "SELECT imagen FROM DATOS_PAPELERIA WHERE codigo=?",
-                        (codigo,)
-                    ).fetchone()
-
+                    producto = conn.execute("SELECT imagen FROM DATOS_PAPELERIA WHERE codigo=?", (codigo,)).fetchone()
                     imagenes_actuales = []
                     if producto["imagen"]:
                         imagenes_actuales = producto["imagen"].split(',')
-
                     imagenes_actuales.append(nombre_seguro)
 
-                    conn.execute(
-                        "UPDATE DATOS_PAPELERIA SET imagen=? WHERE codigo=?",
-                        (",".join(imagenes_actuales), codigo)
-                    )
+                    conn.execute("UPDATE DATOS_PAPELERIA SET imagen=? WHERE codigo=?", (",".join(imagenes_actuales), codigo))
 
         conn.commit()
-
         flash("Movimientos, destacados e imágenes guardados correctamente", "success")
         return redirect(url_for("admin_productos"))
 
     productos = conn.execute("SELECT * FROM DATOS_PAPELERIA ORDER BY descripcion").fetchall()
     conn.close()
-
     return render_template("admin_productos.html", productos=productos)
 
 @app.route("/actualizar_precio/<codigo>", methods=["POST"])
@@ -1704,12 +1363,11 @@ def actualizar_precio(codigo):
     conn.commit()
     conn.close()
     return {"ok": True}
-# --- RUTA PARA AJUSTAR INVENTARIO DESDE BOTONES + / - ---
+
 @app.route('/admin/producto/ajustar/<codigo>', methods=['POST'])
 @login_required
 def ajustar_inventario(codigo):
-    cambio = int(request.form.get('cambio', 0))  # Puede ser positivo o negativo
-
+    cambio = int(request.form.get('cambio', 0))
     conn = get_db_connection()
     producto = conn.execute("SELECT inventario FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
 
@@ -1719,61 +1377,38 @@ def ajustar_inventario(codigo):
 
     nuevo_inventario = producto['inventario'] + cambio
     if nuevo_inventario < 0:
-        nuevo_inventario = 0  # Nunca permitimos inventario negativo
+        nuevo_inventario = 0
 
     conn.execute("UPDATE DATOS_PAPELERIA SET inventario = ? WHERE codigo = ?", (nuevo_inventario, codigo))
     conn.commit()
     conn.close()
-
     return {"ok": True, "nuevo_inventario": nuevo_inventario}
-# -----------------------------
-# CORTE DE CAJA DIARIO
-# -----------------------------
+
 @app.route("/corte_caja")
 @login_required
 def corte_caja():
     conn = get_db_connection()
-
-    ventas = conn.execute("""
-        SELECT id, fecha, total
-        FROM VENTAS
-        WHERE date(fecha) = date('now','localtime')
-    """).fetchall()
-
-    total = conn.execute("""
-        SELECT COALESCE(SUM(total),0)
-        FROM VENTAS
-        WHERE date(fecha) = date('now','localtime')
-    """).fetchone()[0]
-
+    ventas = conn.execute("SELECT id, fecha, total FROM VENTAS WHERE date(fecha) = date('now','localtime')").fetchall()
+    total = conn.execute("SELECT COALESCE(SUM(total),0) FROM VENTAS WHERE date(fecha) = date('now','localtime')").fetchone()[0]
     conn.close()
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
-    elementos = []
+    elementos = [Paragraph("CORTE DEL DÍA", styles['Title']), Spacer(1, 20), Paragraph(f"Total: ${total:.2f}", styles['Normal']), Spacer(1, 20)]
 
-    elementos.append(Paragraph("CORTE DEL DÍA", styles['Title']))
-    elementos.append(Spacer(1,20))
-    elementos.append(Paragraph(f"Total: ${total:.2f}", styles['Normal']))
-    elementos.append(Spacer(1,20))
-
-    data = [["ID","Fecha","Total"]]
+    data = [["ID", "Fecha", "Total"]]
     for v in ventas:
         data.append([v["id"], v["fecha"], f"${v['total']:.2f}"])
 
     tabla = Table(data)
-    tabla.setStyle(TableStyle([("GRID",(0,0),(-1,-1),1,colors.black)]))
-
+    tabla.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 1, colors.black)]))
     elementos.append(tabla)
     doc.build(elementos)
     buffer.seek(0)
 
     return send_file(buffer, download_name="corte.pdf", mimetype="application/pdf")
 
-# -----------------------------
-# CIERRE DE CAJA
-# -----------------------------
 @app.route("/cerrar_caja")
 @login_required
 def cerrar_caja():
@@ -1783,98 +1418,46 @@ def cerrar_caja():
     total = cursor.execute("SELECT COALESCE(SUM(total),0) FROM VENTAS").fetchone()[0]
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    cursor.execute("""
-        INSERT INTO cortes_caja (fecha, total, tickets)
-        VALUES (?, ?, 0)
-    """, (fecha, total))
+    cursor.execute("INSERT INTO cortes_caja (fecha, total, tickets) VALUES (?, ?, 0)", (fecha, total))
     corte_id = cursor.lastrowid
 
-    cursor.execute("""
-        UPDATE VENTAS
-        SET corte_id = ?
-        WHERE corte_id IS NULL
-    """, (corte_id,))
-
-
-
+    cursor.execute("UPDATE VENTAS SET corte_id = ? WHERE corte_id IS NULL", (corte_id,))
     conn.commit()
     conn.close()
 
     flash("Caja cerrada correctamente", "success")
     return redirect(url_for("admin_dashboard"))
+
 @app.route("/corte_caja_rango")
 @login_required
 def corte_caja_rango():
-
     inicio = request.args.get("inicio")
     fin = request.args.get("fin")
 
     conn = get_db_connection()
-
-    ventas = conn.execute("""
-        SELECT id, fecha, total
-        FROM VENTAS
-        WHERE date(fecha) BETWEEN ? AND ?
-    """,(inicio,fin)).fetchall()
-
-    total = conn.execute("""
-        SELECT COALESCE(SUM(total),0) as total
-        FROM VENTAS
-        WHERE corte_id IS NULL
-        AND date(fecha) BETWEEN ? AND ?
-    """,(inicio,fin)).fetchone()["total"]
-
+    ventas = conn.execute("SELECT id, fecha, total FROM VENTAS WHERE date(fecha) BETWEEN ? AND ?", (inicio, fin)).fetchall()
+    total = conn.execute("SELECT COALESCE(SUM(total),0) as total FROM VENTAS WHERE corte_id IS NULL AND date(fecha) BETWEEN ? AND ?", (inicio, fin)).fetchone()["total"]
     tickets = len(ventas)
-
     conn.close()
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
-
     styles = getSampleStyleSheet()
-    elementos = []
+    elementos = [Paragraph("CORTE DE CAJA", styles['Title']), Spacer(1, 20), Paragraph(f"Periodo: {inicio} a {fin}", styles['Heading2']), Spacer(1, 20), Paragraph(f"Total vendido: ${total:.2f}", styles['Normal']), Paragraph(f"Tickets: {tickets}", styles['Normal']), Spacer(1, 20)]
 
-    elementos.append(Paragraph("CORTE DE CAJA", styles['Title']))
-    elementos.append(Spacer(1,20))
-
-    elementos.append(Paragraph(f"Periodo: {inicio} a {fin}", styles['Heading2']))
-    elementos.append(Spacer(1,20))
-
-    elementos.append(Paragraph(f"Total vendido: ${total:.2f}", styles['Normal']))
-    elementos.append(Paragraph(f"Tickets: {tickets}", styles['Normal']))
-
-    elementos.append(Spacer(1,20))
-
-    data = [["ID","Fecha","Total"]]
-
+    data = [["ID", "Fecha", "Total"]]
     for v in ventas:
         data.append([v["id"], v["fecha"], f"${v['total']:.2f}"])
-
-    data.append(["","TOTAL",f"${total:.2f}"])
+    data.append(["", "TOTAL", f"${total:.2f}"])
 
     tabla = Table(data)
-
-    tabla.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),colors.grey),
-        ("TEXTCOLOR",(0,0),(-1,0),colors.white),
-        ("GRID",(0,0),(-1,-1),1,colors.black)
-    ]))
-
+    tabla.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.grey), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("GRID", (0, 0), (-1, -1), 1, colors.black)]))
     elementos.append(tabla)
-
     doc.build(elementos)
-
     buffer.seek(0)
 
-    return send_file(
-        buffer,
-        as_attachment=False,
-        download_name="corte_caja_rango.pdf",
-        mimetype="application/pdf"
-    )
-# -----------------------------
-# REPORTES
-# -----------------------------
+    return send_file(buffer, as_attachment=False, download_name="corte_caja_rango.pdf", mimetype="application/pdf")
+
 @app.route("/admin/reportes")
 @login_required
 def admin_reportes():
@@ -1887,13 +1470,7 @@ def admin_reportes():
 @login_required
 def detalle_corte(corte_id):
     conn = get_db_connection()
-
-    corte = conn.execute(
-        "SELECT * FROM cortes_caja WHERE id = ?",
-        (corte_id,)
-    ).fetchone()
-
-    # Se corrigió el cierre de las comillas triples aquí
+    corte = conn.execute("SELECT * FROM cortes_caja WHERE id = ?", (corte_id,)).fetchone()
     detalles = conn.execute("""
         SELECT vd.descripcion, SUM(vd.cantidad) as cant, SUM(vd.subtotal) as total
         FROM venta_detalle vd
@@ -1901,18 +1478,9 @@ def detalle_corte(corte_id):
         WHERE v.corte_id = ?
         GROUP BY vd.descripcion
     """, (corte_id,)).fetchall()
-
     conn.close()
+    return render_template("detalle_corte.html", corte=corte, detalles=detalles)
 
-    return render_template(
-        "detalle_corte.html",
-        corte=corte,
-        detalles=detalles
-    )
-
-# -----------------------------
-# HISTORIAL
-# -----------------------------
 @app.route("/admin/historial")
 @login_required
 def admin_historial():
@@ -1920,20 +1488,6 @@ def admin_historial():
     datos = conn.execute("SELECT * FROM HISTORIAL_RECARGAS ORDER BY fecha DESC").fetchall()
     conn.close()
     return render_template("admin_historial.html", historial=datos)
-
-def check_db():
-    conn = get_db_connection()
-    # Se asegura que el string multilínea esté bien cerrado
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS configuracion
-        (id INTEGER PRIMARY KEY, nombre_negocio TEXT, mensaje_ticket TEXT)
-    ''')
-
-    res = conn.execute("SELECT COUNT(*) FROM configuracion").fetchone()
-    if res[0] == 0:
-        conn.execute("INSERT INTO configuracion (id, nombre_negocio, mensaje_ticket) VALUES (1, 'Papelería', '¡Gracias por su compra!')")
-    conn.commit()
-    conn.close()
 
 @app.route('/fotos_productos/<path:filename>')
 def servir_foto_externa(filename):
@@ -1954,25 +1508,16 @@ def ruta_limpiar_imagenes():
 def eliminar_imagen(codigo, img):
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    producto = cursor.execute(
-        "SELECT imagen FROM DATOS_PAPELERIA WHERE codigo = ?",
-        (codigo,)
-    ).fetchone()
+    producto = cursor.execute("SELECT imagen FROM DATOS_PAPELERIA WHERE codigo = ?", (codigo,)).fetchone()
 
     if producto and producto["imagen"]:
         imagenes = producto["imagen"].split(",")
         imagenes = [i for i in imagenes if i != img]
         nueva_lista = ",".join(imagenes)
-
-        cursor.execute(
-            "UPDATE DATOS_PAPELERIA SET imagen = ? WHERE codigo = ?",
-            (nueva_lista, codigo)
-        )
+        cursor.execute("UPDATE DATOS_PAPELERIA SET imagen = ? WHERE codigo = ?", (nueva_lista, codigo))
         conn.commit()
 
     conn.close()
-
     ruta = os.path.join(PRODUCTOS_FOLDER, img)
     if os.path.exists(ruta):
         try:
@@ -1982,29 +1527,20 @@ def eliminar_imagen(codigo, img):
 
     flash(" Imagen eliminada", "success")
     return redirect(url_for("admin_productos"))
+
 def actualizar_tabla_configuracion():
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    # Intentar agregar columnas nuevas
     try:
         cursor.execute("ALTER TABLE configuracion ADD COLUMN banner TEXT")
     except:
         pass
-
     try:
         cursor.execute("ALTER TABLE configuracion ADD COLUMN fondo TEXT")
     except:
         pass
-
     conn.commit()
     conn.close()
-# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
-
-# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
-
-
-# --- ADMINISTRACIÓN DE ZONAS DE ENTREGA ---
 
 @app.route('/admin/zonas_entrega', methods=['GET', 'POST'])
 def admin_zonas_entrega():
@@ -2012,8 +1548,6 @@ def admin_zonas_entrega():
         return redirect('/admin/login')
 
     conn = get_db_connection()
-
-    # Crear la tabla automáticamente si aún no existe en database.db
     conn.execute('''
         CREATE TABLE IF NOT EXISTS zonas_entrega (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2035,9 +1569,7 @@ def admin_zonas_entrega():
 
     zonas = conn.execute('SELECT * FROM zonas_entrega ORDER BY codigo_postal ASC').fetchall()
     conn.close()
-
     return render_template('admin_zonas.html', zonas=zonas)
-
 
 @app.route('/admin/zonas_entrega/cambiar_estado/<int:zona_id>')
 def cambiar_estado_zona(zona_id):
@@ -2052,52 +1584,17 @@ def cambiar_estado_zona(zona_id):
     ''', (zona_id,))
     conn.commit()
     conn.close()
-
     return redirect(url_for('admin_zonas_entrega'))
 
-
-# -----------------------------
-# SERVIDOR
-# -----------------------------
-def iniciar_flask():
-    app.run(debug=False, use_reloader=False)
-MODO = "app"  #  CAMBIA AQUÍ: "web" o "app"
+# =========================================================
+#  INICIO DEL SERVIDOR
+# =========================================================
+MODO = "app"
 
 if __name__ == "__main__":
-
-    conn = sqlite3.connect(DB_PATH)
-def actualizar_tablas():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Agregar columna 'precio_unit' si no existe
-    try:
-        cursor.execute("ALTER TABLE venta_detalle ADD COLUMN precio_unit REAL")
-    except Exception:
-        pass
-
-    # Agregar columna 'destacado' si no existe
-    try:
-        cursor.execute("ALTER TABLE DATOS_PAPELERIA ADD COLUMN destacado INTEGER DEFAULT 0")
-        print("Columna 'destacado' agregada correctamente.")
-    except Exception:
-        pass  # Si ya existe, ignora el error silenciosamente
-
-    conn.commit()
-    conn.close()
-
-def iniciar_flask():
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
-
-MODO = "app"  # "web" o "app"
-
-if __name__ == "__main__":
-
-    # 1. PREPARAR CARPETAS
     for carpeta in [DB_FOLDER, PRODUCTOS_FOLDER, TICKETS_FOLDER]:
         os.makedirs(carpeta, exist_ok=True)
 
-    # 2. BASE DE DATOS
     inicializar_base_de_datos()
     crear_tablas()
     actualizar_tabla_configuracion()
@@ -2112,17 +1609,14 @@ if __name__ == "__main__":
 
     if MODO == "app":
         print("Modo APP iniciado")
-
-        t = threading.Thread(target=iniciar_flask)
+        t = threading.Thread(target=lambda: app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False))
         t.daemon = True
         t.start()
 
         webview.create_window("Papeleria App", "http://127.0.0.1:5000")
         webview.start()
-
     elif MODO == "web":
         print("Modo WEB iniciado en http://127.0.0.1:5001")
         app.run(host="0.0.0.0", port=5001)
-
     else:
         print("MODO no válido. Usa 'app' o 'web'")

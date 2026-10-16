@@ -36,6 +36,7 @@ p{ font-size:1.1rem; color:#2c3e50;}
 .info{ margin-top:30px;}
 .info p{ color:#2c3e50; font-weight:bold;}
 .disponibilidad{ background:#27ae60; color:white; padding:10px; border-radius:10px; margin-top:10px;}
+.aviso-minimo{ background:#e67e22; color:white; padding:12px; border-radius:10px; margin-top:10px; font-weight:bold; font-size:1.1rem; box-shadow:0 2px 5px rgba(0,0,0,0.2);}
 </style>
 
 <div class="main-container">
@@ -46,13 +47,11 @@ p{ font-size:1.1rem; color:#2c3e50;}
     </div>
 
     <!-- BANNER -->
-    
-        {% if config.banner %}
-<div class="banner">
-    <img src="{{ url_for('static', filename=config.banner) }}">
-</div>
-{% endif %}
-   
+    {% if config.banner %}
+    <div class="banner">
+        <img src="{{ url_for('static', filename=config.banner) }}">
+    </div>
+    {% endif %}
 
     <!-- BIENVENIDA -->
     <div class="welcome-card">
@@ -64,19 +63,16 @@ p{ font-size:1.1rem; color:#2c3e50;}
         <p>haz click en el siguiente boton </p>
         <p>al final del proceso de compra no olvides hacer click en enviar por whattsapp para surtir tu pedido</p>
 
-
-
-
         <a href="{{ url_for('zona') }}" class="btn-order">🛒 HACER PEDIDO</a>
     </div>
 
     <!-- INFO -->
     <div class="info">
         <p>📞 {{ config.telefono }}</p>
+        <div class="aviso-minimo">🚚 Compra mínima para entrega gratis de $100.00 M.N.</div>
         <div class="disponibilidad">⏰ Pedidos 24/7</div>
         <div class="disponibilidad">📍 Pagas al recibir</div>
-        <div class="disponibilidad">🚚 Entregas rápidas</div>
-        <div class="disponibilidad">en el transcurso de las 24 hrs</div>
+        <div class="disponibilidad">🚚 Entregas rápidas en el transcurso de las 24 hrs</div>
     </div>
 
 </div>
